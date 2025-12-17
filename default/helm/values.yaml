@@ -1,0 +1,72 @@
+#=============================================================================
+# <copyright>
+# Copyright (c) 2024 3LC Inc. All rights reserved.
+#
+# All rights are reserved. Reproduction or transmission in whole or in part, in
+# any form or by any means, electronic, mechanical or otherwise, is prohibited
+# without the prior written permission of the copyright owner.
+# </copyright>
+#=============================================================================
+
+
+object-service:
+  # tlc-object-service is the name used in docker-compose when building the docker image. Change according to the desired name in container registry.
+  image: "{{ .Values.global.containerRegistry }}tlc-object-service:{{ .Values.global.imageTag }}"
+  apiKey: "{{ .Values.global.apiKey }}"
+  pvc_host_path: "{{ .Values.global.pvc_host_path }}"
+
+ml-service:
+  # tlc-ml-demo is the name used in docker-compose when building the docker image. Change according to the desired name in container registry.
+  image: "{{ .Values.global.containerRegistry }}tlc-ml-demo:{{ .Values.global.imageTag }}"
+  apiKey: "{{ .Values.global.apiKey }}"
+  pvc_host_path: "{{ .Values.global.pvc_host_path }}"
+
+nginx:
+  service:
+    type: NodePort
+
+  # Everything after / is passed to the Object Service by default, e.g. /api/live -> object-service:5015/live.
+  # Thus, the trailing slash in both the location and proxy_pass is important.
+  # For JupyterLab, because we tell JupyterLab that the base_url will be /lab, it will handle it, so trailing / is not needed for proxy_pass.
+  serverBlock: |-
+    server {
+      listen 0.0.0.0:8080;
+      location / {
+        proxy_pass http://{{ .Release.Name }}-object-service:5015/;
+        proxy_redirect     off;
+        proxy_set_header   Host $http_host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+      
+      location /lab/ {
+        proxy_pass http://{{ .Release.Name }}-ml-service:8888;
+        proxy_redirect     off;
+        proxy_set_header   Host $http_host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+        
+        proxy_buffering off;
+      }
+    }
+
+
+
+# Global configuration
+global:
+  # Docker registry URI
+  containerRegistry: #
+
+  # Image tag to use to pull from registry
+  imageTag: #
+
+  # Service DNS name, like "tlc.mydomain.com"
+  dnsName: #
+
+  # The 3LC account API key
+  apiKey: #
+
+  # Where the 3LC projects are on the host machine
+  pvc_host_path: #
+
+

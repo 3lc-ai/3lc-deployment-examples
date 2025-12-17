@@ -1,0 +1,40 @@
+#=============================================================================
+# <copyright>
+# Copyright (c) 2024 3LC Inc. All rights reserved.
+#
+# All rights are reserved. Reproduction or transmission in whole or in part, in
+# any form or by any means, electronic, mechanical or otherwise, is prohibited
+# without the prior written permission of the copyright owner.
+# </copyright>
+#=============================================================================
+
+# This file demonstrates deploying the helm chart to Kubernetes in Docker Desktop.
+
+object-service:
+  imagePullPolicy: Never # On Docker Desktop, we already built the image, so we don't want to pull.
+
+ml-service:
+  imagePullPolicy: Never # On Docker Desktop, we already built the image, so we don't want to pull.
+
+# Force nginx to use the exact port for its nodeport so that we have a predictable URL (for the dnsName field below) for the Object Service.
+nginx:
+  service:
+    nodePorts: 
+      http: 30000
+
+global:
+  # For localhost, there is no containerRegistry
+  containerRegistry: #
+
+  # This is the image tag built from the docker-compose
+  imageTag: latest #
+
+  # Used to build the Object Service URL for the Dashboard so that it knows to connect to the Object Service in this domain.
+  dnsName: localhost:30000
+  
+  # Intentionally left blank and this must be filled out before running this sample.
+  apiKey: #
+  
+  # This is to demonstrate the ability to use volume mounts.
+  # This assumes that the current folder is in c:\tlc\kubernetes-deployment-sample\default.
+  pvc_host_path: /run/desktop/mnt/host/c/tlc/kubernetes-deployment-sample/default/mounts

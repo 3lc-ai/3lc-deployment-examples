@@ -1,0 +1,54 @@
+#=============================================================================
+# <copyright>
+# Copyright (c) 2024 3LC Inc. All rights reserved.
+#
+# All rights are reserved. Reproduction or transmission in whole or in part, in
+# any form or by any means, electronic, mechanical or otherwise, is prohibited
+# without the prior written permission of the copyright owner.
+# </copyright>
+#=============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+      release: {{ .Release.Name }}
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+        chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+        heritage: {{ .Release.Service }}
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: {{ .Release.Name }}-{{ .Chart.Name }}
+          image: "{{- tpl .Values.image . }}"
+          # Override the command so that the location of the Object Service can be derived from this deployment and passed in
+          command: ["3lc-dashboard", "--object-service", "{{ tpl .Values.objectServiceUrl . }}"]
+          imagePullPolicy: {{ tpl .Values.imagePullPolicy . }}
+          ports:
+            - name: http-server
+              containerPort: {{ required "required" .Values.servicePort }}
+          livenessProbe:
+            httpGet:
+              # Dashboard is accessed at root address so it can be used for health check
+              path: /
+              port: http-server
+            initialDelaySeconds: 60
+            timeoutSeconds: 20
+            failureThreshold: 6
+          env:
+            # TLC_OBJECT_SERVICE_AUTH_SECRET is required for 3LC to run when deployed in enterprise settings.
+            # This should be a strong, random string that you come up with that is known only to the Dashboard and Object Service.
+            # This can also be configured as a Kubernetes secret for more security. For the sake of the demo, a Kubernetes secret is not used.
+            # See also: https://docs.3lc.ai/3lc/latest/user-guide/enterprise-managed/3lc-managed-architecture.html#lc-managed-secure-communication
+            - name: TLC_OBJECT_SERVICE_AUTH_SECRET
+              value: "{{ tpl .Values.objectServiceAuthSecret . }}"
+        
+          
