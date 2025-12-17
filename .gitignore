@@ -1,0 +1,5 @@
+.env
+*.tgz
+requirements.lock
+
+mounts/

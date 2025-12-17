@@ -1,0 +1,16 @@
+#=============================================================================
+# <copyright>
+# Copyright (c) 2024 3LC Inc. All rights reserved.
+#
+# All rights are reserved. Reproduction or transmission in whole or in part, in
+# any form or by any means, electronic, mechanical or otherwise, is prohibited
+# without the prior written permission of the copyright owner.
+# </copyright>
+#=============================================================================
+
+# Docker image URI, like "registry_name/repo_name:image_tag"
+image:
+imagePullPolicy: Always
+
+servicePort: 8888
+licenseKey: #

@@ -1,0 +1,95 @@
+#=============================================================================
+# <copyright>
+# Copyright (c) 2024 3LC Inc. All rights reserved.
+#
+# All rights are reserved. Reproduction or transmission in whole or in part, in
+# any form or by any means, electronic, mechanical or otherwise, is prohibited
+# without the prior written permission of the copyright owner.
+# </copyright>
+#=============================================================================
+
+version: '3'
+
+services:
+  proxy:
+    image: nginx:alpine
+    volumes:
+      - "./default.conf:/etc/nginx/conf.d/default.conf"
+    ports:
+      - 8080:80
+    expose:
+      - "8080"
+    command: /bin/sh -c "nginx -g 'daemon off;'"
+    restart: always
+    depends_on:
+      - object_service
+      - dashboard
+
+  object_service:
+    image: "tlc-object-service:latest"
+    build:
+      dockerfile: object_service.Dockerfile
+      args:
+        - ACCESS_KEY=${TLC_PYPI_ACCESS_KEY}
+        - SECRET_KEY=${TLC_PYPI_SECRET_KEY}
+        - TLC_VERSION=2.20.1
+    environment:
+      - TLC_LICENSE=${TLC_LICENSE}
+      - TLC_OBJECT_SERVICE_AUTH_SECRET=${TLC_OBJECT_SERVICE_AUTH_SECRET}
+      - TLC_CONFIG_PROJECT_ROOT_URL=/data/3lc/project
+    volumes:
+      - ./mounts/3lc:/data/3lc
+    ports:
+      - 5002:5015
+    expose:
+      - "5002"
+
+  dashboard:
+    image: "tlc-dashboard:latest"
+    build:
+      dockerfile: dashboard.Dockerfile
+      args:
+        - ACCESS_KEY=${TLC_PYPI_ACCESS_KEY}
+        - SECRET_KEY=${TLC_PYPI_SECRET_KEY}
+        - DASHBOARD_VERSION=2.7.4
+    environment:
+      - TLC_OBJECT_SERVICE_AUTH_SECRET=${TLC_OBJECT_SERVICE_AUTH_SECRET}
+    # Override the location of the Object Service with the expected full DNS address
+    command: ["--object-service", "http://localhost:8080/api"]
+    ports:
+      - 5001:8080
+    expose:
+      - "5001"
+
+  ml:
+    image: "tlc-ml-demo:latest"
+    build:
+      dockerfile: ml.Dockerfile
+      args:
+        - ACCESS_KEY=${TLC_PYPI_ACCESS_KEY}
+        - SECRET_KEY=${TLC_PYPI_SECRET_KEY}
+        - TLC_VERSION=2.20.1
+    environment:
+      - TLC_LICENSE=${TLC_LICENSE}
+      - TLC_CONFIG_PROJECT_ROOT_URL=/data/3lc/project
+    volumes:
+      - ./mounts/3lc:/data/3lc
+      - ./mounts/jupyter:/home/jovyan/work
+    command: ["start-notebook.sh", "--NotebookApp.token=''"]
+    ports:
+      - 8888:8888
+    expose:
+      - "8888"
+
+  # Using docker-host image to access host network from inside of portal container
+  dockerhost:
+    image: qoomon/docker-host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    restart: on-failure
+    deploy:
+      resources:
+        limits:
+          memory: 16M
+

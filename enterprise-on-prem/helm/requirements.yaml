@@ -1,0 +1,20 @@
+#=============================================================================
+# <copyright>
+# Copyright (c) 2024 3LC Inc. All rights reserved.
+#
+# All rights are reserved. Reproduction or transmission in whole or in part, in
+# any form or by any means, electronic, mechanical or otherwise, is prohibited
+# without the prior written permission of the copyright owner.
+# </copyright>
+#=============================================================================
+dependencies:
+  - name: nginx
+    version: 13.2.23
+    repository: https://charts.bitnami.com/bitnami
+  - name: dashboard
+    version: 0.1.0
+    repository: file://charts/dashboard
+  - name: object-service
+    version: 0.1.0
+    repository: file://charts/object-service
+  
