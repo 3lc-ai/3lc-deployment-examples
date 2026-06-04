@@ -15,6 +15,9 @@ ARG ACCESS_KEY
 ARG SECRET_KEY
 ARG DASHBOARD_VERSION
 
+# Upgrade pip first for a consistent, modern resolver across all 3LC images.
+RUN pip install --no-cache --upgrade pip
+
 RUN pip install --no-cache --index-url https://${ACCESS_KEY}:${SECRET_KEY}@pypi.3lc.ai/repositories/releases --extra-index-url https://pypi.org/simple 3lc-dashboard==${DASHBOARD_VERSION}
 
 EXPOSE 8080

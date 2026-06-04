@@ -15,6 +15,9 @@ ARG ACCESS_KEY
 ARG SECRET_KEY
 ARG TLC_VERSION
 
+# Upgrade pip first to avoid issues with old pip resolver.
+RUN pip install --no-cache --upgrade pip
+
 RUN pip install --no-cache --index-url https://${ACCESS_KEY}:${SECRET_KEY}@pypi.3lc.ai/repositories/releases --extra-index-url https://pypi.org/simple 3lc==${TLC_VERSION}
 
 EXPOSE 5015

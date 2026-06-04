@@ -8,8 +8,6 @@
 # </copyright>
 #=============================================================================
 
-version: '3'
-
 services:
   proxy:
     image: nginx:alpine
@@ -32,7 +30,7 @@ services:
       args:
         - ACCESS_KEY=${TLC_PYPI_ACCESS_KEY}
         - SECRET_KEY=${TLC_PYPI_SECRET_KEY}
-        - TLC_VERSION=2.20.1
+        - TLC_VERSION=3.0.0
     environment:
       - TLC_LICENSE=${TLC_LICENSE}
       - TLC_OBJECT_SERVICE_AUTH_SECRET=${TLC_OBJECT_SERVICE_AUTH_SECRET}
@@ -51,7 +49,7 @@ services:
       args:
         - ACCESS_KEY=${TLC_PYPI_ACCESS_KEY}
         - SECRET_KEY=${TLC_PYPI_SECRET_KEY}
-        - DASHBOARD_VERSION=2.7.4
+        - DASHBOARD_VERSION=2.8.1
     environment:
       - TLC_OBJECT_SERVICE_AUTH_SECRET=${TLC_OBJECT_SERVICE_AUTH_SECRET}
     # Override the location of the Object Service with the expected full DNS address
@@ -68,7 +66,7 @@ services:
       args:
         - ACCESS_KEY=${TLC_PYPI_ACCESS_KEY}
         - SECRET_KEY=${TLC_PYPI_SECRET_KEY}
-        - TLC_VERSION=2.20.1
+        - TLC_VERSION=3.0.0
     environment:
       - TLC_LICENSE=${TLC_LICENSE}
       - TLC_CONFIG_PROJECT_ROOT_URL=/data/3lc/project
