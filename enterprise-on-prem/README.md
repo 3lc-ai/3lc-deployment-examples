@@ -11,7 +11,6 @@ Provide a sample for how to run 3LC in Docker and Kubernetes.
    mkdir mounts
    mkdir mounts\3lc
    mkdir mounts\3lc\project
-   mkdir mounts\jupyter
    ```
 6. Create .env with these fields for docker-compose to build/run
    ```
@@ -27,14 +26,11 @@ Provide a sample for how to run 3LC in Docker and Kubernetes.
    ```
 # Run the samples
 
-The /mounts/3lc folder is configured to be mounted as /data on the ML and Object Service nodes.
-
-The /mounts/jupyter folder is configured to be mounted as the `work` folder for jupyter lab to read/write to.
+The /mounts/3lc folder is configured to be mounted as /data on the Object Service node.
 
 ## Docker-Compose
 1. Run with `docker-compose up --build`
 2. Browse to http://localhost:8080 to access dashboard. The Object Service will run on http://localhost:8080/api
-3. JupyterLab will be running on http://localhost:8888
 
 ## Kubernetes via Docker Desktop
 1. Modify docker-desktop.yml to fit your environment. The current config assumes that current folder is in C:/tlc/kubernetes-deployment-sample/enterprise-customer-managed.
@@ -49,5 +45,4 @@ The /mounts/jupyter folder is configured to be mounted as the `work` folder for 
    helm upgrade -i tlc-demo ./helm --namespace tlc-demo --create-namespace -f docker-desktop.yml
    ```
 3. Browse to http://localhost:30000 to access the Dashboard. The Object Service will run on http://localhost:30000/api
-4. Jupyter lab will be running on http://localhost:30000/lab
 

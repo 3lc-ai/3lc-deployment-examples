@@ -22,12 +22,6 @@ object-service:
   objectServiceAuthSecret: "{{ .Values.global.objectServiceAuthSecret }}"
   pvc_host_path: "{{ .Values.global.pvc_host_path }}"
 
-ml-service:
-  # tlc-ml-demo is the name used in docker-compose when building the docker image. Change according to the desired name in container registry.
-  image: "{{ .Values.global.containerRegistry }}tlc-ml-demo:{{ .Values.global.imageTag }}"
-  licenseKey: "{{ .Values.global.licenseKey }}"
-  pvc_host_path: "{{ .Values.global.pvc_host_path }}"
-
 nginx:
   service:
     type: NodePort
@@ -35,7 +29,6 @@ nginx:
   # Everything after / is passed to the Dashboard by default, e.g. /index.html -> dashboard:8080/index.html.
   # For the Object Service, everything after /api is passed, e.g. /api/live -> object-service:5015/live.
   # Thus, the trailing slash in both the location and proxy_pass is important.
-  # For jupyter lab, because we tell jupyter lab that the base_url will be /lab, it will handle it, so trailing / is not needed for proxy_pass.
   serverBlock: |-
     server {
       listen 0.0.0.0:8080;
@@ -53,16 +46,6 @@ nginx:
         proxy_set_header   Host $http_host;
         proxy_set_header   X-Real-IP $remote_addr;
         proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
-      }
-
-      location /lab/ {
-        proxy_pass http://{{ .Release.Name }}-ml-service:8888;
-        proxy_redirect     off;
-        proxy_set_header   Host $http_host;
-        proxy_set_header   X-Real-IP $remote_addr;
-        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
-        
-        proxy_buffering off;
       }
     }
 
