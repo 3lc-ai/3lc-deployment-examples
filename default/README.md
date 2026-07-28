@@ -139,19 +139,31 @@ Edit `docker-desktop.yml`:
 
 ### Deploy
 
+> **Check which cluster you are about to deploy into.** Helm and kubectl act on your
+> current kubectl context unless told otherwise, and on a developer machine that may be
+> a shared or production cluster. Run `kubectl config current-context` to see what you
+> would otherwise hit. Every command below pins the context explicitly to avoid surprises.
+
 ```bash
-./deploy.sh
+./deploy.sh                # deploys to the docker-desktop context
+./deploy.sh my-cluster     # or name a different context explicitly
 ```
 
-or equivalently:
+`deploy.sh` prints the context and cluster it resolved before it does anything, and fails
+with the list of available contexts if the one you named does not exist.
+
+The equivalent commands:
 
 ```bash
 # Add the bitnami repo so the chart can resolve its nginx dependency
 helm repo add bitnami https://charts.bitnami.com/bitnami
 # Fetch chart dependencies listed in helm/requirements.yaml
 helm dependency build ./helm
-# Install or upgrade the release
-helm upgrade -i tlc-demo ./helm --namespace tlc-demo --create-namespace -f docker-desktop.yml
+# Install or upgrade the release, pinned to the local Docker Desktop cluster
+helm upgrade -i tlc-demo ./helm \
+  --kube-context docker-desktop \
+  --namespace tlc-demo --create-namespace \
+  -f docker-desktop.yml
 ```
 
 ### Access through the NodePort
@@ -166,14 +178,14 @@ Note this differs from Part 1's port 8080 - the two can run side by side.
 ### Verify
 
 ```bash
-kubectl get pods -n tlc-demo
+kubectl --context docker-desktop get pods -n tlc-demo
 curl http://localhost:30000/live
 ```
 
 ### Uninstall
 
 ```bash
-helm uninstall tlc-demo --namespace tlc-demo
+helm uninstall tlc-demo --kube-context docker-desktop --namespace tlc-demo
 ```
 
 ### Where routing is defined in Kubernetes
