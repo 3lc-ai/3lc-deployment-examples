@@ -261,6 +261,20 @@ docker push <registry>/tlc-enterprise-dashboard:<tag>
 The `hostPath` volume is a demonstration convenience only - it pins the workload to one
 node and is not appropriate for production.
 
+## Using the deployment
+
+Browse to <http://localhost:8080>, or <http://localhost:30000> if you deployed with Part
+2. The Dashboard is served from your own deployment; unlike the Default deployment,
+nothing is hosted by 3LC.
+
+The Object Service sits behind the same entry point under `/api`. It is an HTTP API, not
+a web UI: `/api/` returns **403** because every route except the `/api/live` health check
+requires authentication. That is expected, and not a sign of a broken deployment.
+
+> At startup the Object Service prints its own address, for example
+> `http://172.19.0.4:5015`. That is the container's address on the Docker network and is
+> **not reachable from your browser**. Use the published URLs above instead.
+
 ## Layout
 
 | Path | Used by | Purpose |
