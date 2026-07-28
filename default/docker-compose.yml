@@ -27,7 +27,7 @@ services:
     build:
       dockerfile: object_service.Dockerfile
       args:
-        - TLC_VERSION=3.0.0
+        - TLC_VERSION=3.1.0
     environment:
       - TLC_API_KEY=${TLC_API_KEY}
       - TLC_PROJECT_ROOT_URL=/data/3lc/project
