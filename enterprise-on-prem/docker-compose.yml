@@ -30,7 +30,7 @@ services:
       args:
         - ACCESS_KEY=${TLC_PYPI_ACCESS_KEY}
         - SECRET_KEY=${TLC_PYPI_SECRET_KEY}
-        - TLC_VERSION=3.0.0
+        - TLC_VERSION=3.1.0
     environment:
       - TLC_LICENSE=${TLC_LICENSE}
       - TLC_OBJECT_SERVICE_AUTH_SECRET=${TLC_OBJECT_SERVICE_AUTH_SECRET}
