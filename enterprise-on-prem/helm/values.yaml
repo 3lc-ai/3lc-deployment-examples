@@ -10,14 +10,14 @@
 
 
 dashboard:
-  # tlc-dashboard is the name used in docker-compose when building the docker image. Change according to the desired name in container registry.
-  image: "{{ .Values.global.containerRegistry }}tlc-dashboard:{{ .Values.global.imageTag }}"
+  # tlc-enterprise-dashboard is the name used in docker-compose when building the docker image. Change according to the desired name in container registry.
+  image: "{{ .Values.global.containerRegistry }}tlc-enterprise-dashboard:{{ .Values.global.imageTag }}"
   objectServiceUrl: "http://{{ .Values.global.dnsName }}/api"
   objectServiceAuthSecret: "{{ .Values.global.objectServiceAuthSecret }}"
 
 object-service:
-  # tlc-object-service is the name used in docker-compose when building the docker image. Change according to the desired name in container registry.
-  image: "{{ .Values.global.containerRegistry }}tlc-object-service:{{ .Values.global.imageTag }}"
+  # tlc-enterprise-object-service is the name used in docker-compose when building the docker image. Change according to the desired name in container registry.
+  image: "{{ .Values.global.containerRegistry }}tlc-enterprise-object-service:{{ .Values.global.imageTag }}"
   licenseKey: "{{ .Values.global.licenseKey }}"
   objectServiceAuthSecret: "{{ .Values.global.objectServiceAuthSecret }}"
   pvc_host_path: "{{ .Values.global.pvc_host_path }}"

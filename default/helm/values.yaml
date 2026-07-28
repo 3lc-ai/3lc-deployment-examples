@@ -10,8 +10,8 @@
 
 
 object-service:
-  # tlc-object-service is the name used in docker-compose when building the docker image. Change according to the desired name in container registry.
-  image: "{{ .Values.global.containerRegistry }}tlc-object-service:{{ .Values.global.imageTag }}"
+  # tlc-default-object-service is the name used in docker-compose when building the docker image. Change according to the desired name in container registry.
+  image: "{{ .Values.global.containerRegistry }}tlc-default-object-service:{{ .Values.global.imageTag }}"
   apiKey: "{{ .Values.global.apiKey }}"
   pvc_host_path: "{{ .Values.global.pvc_host_path }}"
 
