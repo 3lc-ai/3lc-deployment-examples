@@ -108,7 +108,7 @@ docker compose up --build                   Helm chart
   |                                         |
   +- builds tlc-default-object-service -----+ deploys it as the object-service Deployment
   |                                         |
-  +- runs nginx with default.conf           + deploys bitnami/nginx with the equivalent
+  +- runs nginx with default.conf           + deploys nginx:alpine with the equivalent
                                               routing from helm/values.yaml
 ```
 
@@ -155,14 +155,12 @@ Edit `docker-desktop.yml`:
 `deploy.sh` prints the context and cluster it resolved before it does anything, and fails
 with the list of available contexts if the one you named does not exist.
 
-The equivalent commands:
+The equivalent command:
 
 ```bash
-# Add the bitnami repo so the chart can resolve its nginx dependency
-helm repo add bitnami https://charts.bitnami.com/bitnami
-# Fetch chart dependencies listed in helm/requirements.yaml
-helm dependency build ./helm
-# Install or upgrade the release, pinned to the local Docker Desktop cluster
+# Install or upgrade the release, pinned to the local Docker Desktop cluster.
+# Every subchart is local, under helm/charts, so there is no chart repository
+# to add and no dependencies to fetch.
 helm upgrade -i tlc-demo ./helm \
   --kube-context docker-desktop \
   --namespace tlc-demo --create-namespace \
@@ -193,8 +191,9 @@ helm uninstall tlc-demo --kube-context docker-desktop --namespace tlc-demo
 
 ### Where routing is defined in Kubernetes
 
-`helm/values.yaml`, under `nginx.serverBlock`: a Go-templated nginx server block passed
-to the bitnami nginx chart. It is the Kubernetes counterpart to Part 1's `default.conf`
+`helm/values.yaml`, under `nginx.serverBlock`: a Go-templated nginx server block rendered
+into a ConfigMap by the in-repo `nginx` subchart and mounted as the proxy's
+`/etc/nginx/conf.d/default.conf`. It is the Kubernetes counterpart to Part 1's `default.conf`
 and must be kept in sync with it by hand.
 
 ### Deploying to a real cluster
@@ -238,7 +237,7 @@ node and is not appropriate for production.
 | `default.conf` | Part 1 - Docker | nginx routing |
 | `.env.example` | Part 1 - Docker | Template listing the required variables |
 | `.env` | Part 1 - Docker | Your filled-in copy of `.env.example` (not committed) |
-| `helm/` | Part 2 - Kubernetes | Umbrella chart: `values.yaml`, `requirements.yaml`, per-component charts |
+| `helm/` | Part 2 - Kubernetes | Umbrella chart: `values.yaml` plus the per-component subcharts in `helm/charts` (object-service, nginx, and on Enterprise the dashboard). No external chart dependencies. |
 | `docker-desktop.yml` | Part 2 - Kubernetes | Values overlay for the local Docker Desktop cluster |
 | `deploy.sh` | Part 2 - Kubernetes | The three Helm commands above, scripted |
 | `mounts/` | both | Host-side project storage (not committed) |
