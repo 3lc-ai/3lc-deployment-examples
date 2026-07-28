@@ -153,14 +153,6 @@ settings dialog notes, and runs its nodes as containers with their own container
 same deployment therefore fails with `ErrImageNeverPull`, and the pinned NodePort is
 unreachable on `localhost` because the node container publishes no ports.
 
-If you must use kind, load each locally built image into the node first, and reach the
-services with `kubectl port-forward` rather than the NodePort:
-
-```bash
-docker save <image>:latest | docker exec -i desktop-control-plane ctr -n k8s.io images import -
-kubectl --context docker-desktop -n tlc-demo port-forward svc/tlc-demo-nginx 8080:80
-```
-
 ### Configure
 
 Edit `docker-desktop.yml`:
