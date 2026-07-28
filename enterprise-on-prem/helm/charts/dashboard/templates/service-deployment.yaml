@@ -47,7 +47,7 @@ spec:
             # TLC_OBJECT_SERVICE_AUTH_SECRET is required for 3LC to run when deployed in enterprise settings.
             # This should be a strong, random string that you come up with that is known only to the Dashboard and Object Service.
             # This can also be configured as a Kubernetes secret for more security. For the sake of the demo, a Kubernetes secret is not used.
-            # See also: https://docs.3lc.ai/3lc/latest/user-guide/enterprise-managed/3lc-managed-architecture.html#lc-managed-secure-communication
+            # See also: https://docs.3lc.ai/3lc/latest/getting-started/deployment-options/enterprise-on-prem/secure-communication.html
             - name: TLC_OBJECT_SERVICE_AUTH_SECRET
               value: "{{ tpl .Values.objectServiceAuthSecret . }}"
         

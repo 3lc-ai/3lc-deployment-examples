@@ -1,3 +1,4 @@
+#!/bin/bash
 #=============================================================================
 # <copyright>
 # Copyright (c) 2024 3LC Inc. All rights reserved.
@@ -8,7 +9,6 @@
 # </copyright>
 #=============================================================================
 
-#!/bin/bash
 set -e
 
 helm repo add bitnami https://charts.bitnami.com/bitnami
