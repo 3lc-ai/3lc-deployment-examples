@@ -56,9 +56,9 @@ spec:
             # See also: https://docs.3lc.ai/3lc/latest/getting-started/deployment-options/enterprise-on-prem/secure-communication.html
             - name: TLC_OBJECT_SERVICE_AUTH_SECRET
               value: "{{ tpl .Values.objectServiceAuthSecret . }}"
-            # TLC_CONFIG_PROJECT_ROOT_URL can be configured to provide the location where 3LC projects are stored.
+            # TLC_PROJECT_ROOT_URL can be configured to provide the location where 3LC projects are stored.
             # For this demo, the volume is mounted as /data from the host file system (./mounts/3lc) so that we can see the projects being saved to the current folder.
-            - name: TLC_CONFIG_PROJECT_ROOT_URL
+            - name: TLC_PROJECT_ROOT_URL
               value: "/data/3lc/project"
       volumes:
         - name: my-volume

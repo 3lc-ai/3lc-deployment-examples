@@ -65,7 +65,7 @@ TLC_OBJECT_SERVICE_AUTH_SECRET=
 ```
 
 `mounts/3lc` is mounted as `/data/3lc` inside the Object Service container, and
-`TLC_CONFIG_PROJECT_ROOT_URL` points at `/data/3lc/project`, so 3LC projects written by
+`TLC_PROJECT_ROOT_URL` points at `/data/3lc/project`, so 3LC projects written by
 the service appear in `mounts/3lc/project` on your machine.
 
 ## Part 1: Docker Compose

@@ -34,7 +34,7 @@ services:
     environment:
       - TLC_LICENSE=${TLC_LICENSE}
       - TLC_OBJECT_SERVICE_AUTH_SECRET=${TLC_OBJECT_SERVICE_AUTH_SECRET}
-      - TLC_CONFIG_PROJECT_ROOT_URL=/data/3lc/project
+      - TLC_PROJECT_ROOT_URL=/data/3lc/project
     volumes:
       - ./mounts/3lc:/data/3lc
     ports:

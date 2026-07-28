@@ -30,7 +30,7 @@ services:
         - TLC_VERSION=3.0.0
     environment:
       - TLC_API_KEY=${TLC_API_KEY}
-      - TLC_CONFIG_PROJECT_ROOT_URL=/data/3lc/project
+      - TLC_PROJECT_ROOT_URL=/data/3lc/project
     volumes:
       - ./mounts/3lc:/data/3lc
     ports:
