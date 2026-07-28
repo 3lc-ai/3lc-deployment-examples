@@ -7,11 +7,8 @@
 # without the prior written permission of the copyright owner.
 # </copyright>
 #=============================================================================
-dependencies:
-  - name: nginx
-    version: 13.2.23
-    repository: https://charts.bitnami.com/bitnami
-  - name: object-service
-    version: 0.1.0
-    repository: file://charts/object-service
-  
+apiVersion: v1
+appVersion: "1.0"
+description: Reverse proxy providing a single entry point to the 3LC services
+name: nginx
+version: 0.1.0
