@@ -1,48 +1,267 @@
-# Introduction 
-Provide a sample for how to run 3LC in Docker and Kubernetes.
+# 3LC Enterprise On-Prem Deployment Example
 
-# Getting Started
-1. Install Docker Desktop
-2. Use WSL as backend
-3. Enable Kubernetes in Docker Desktop
-4. Install helm (either on windows or WSL)
-5. Create this folder structure (assume Windows)
-   ```
-   mkdir mounts
-   mkdir mounts\3lc
-   mkdir mounts\3lc\project
-   ```
-6. Create .env with these fields for docker-compose to build/run
-   ```
-   # Used to download `3lc-enterprise` wheel from private 3LC package repository
-   TLC_PYPI_ACCESS_KEY=
-   TLC_PYPI_SECRET_KEY=
-   # Used for license authentication at startup of `tlc` Python Package and Object Service
-   # See also: https://docs.3lc.ai/3lc/latest/user-guide/enterprise-managed/licensing.html
-   TLC_LICENSE=
-   # Used to authenticate requests from 3LC Dashboard to Object Service
-   # See also: https://docs.3lc.ai/3lc/latest/user-guide/enterprise-managed/3lc-managed-architecture.html#lc-managed-secure-communication
-   TLC_OBJECT_SERVICE_AUTH_SECRET=
-   ```
-# Run the samples
+A worked example of running 3LC in **Docker Compose** and in **Kubernetes**.
 
-The /mounts/3lc folder is configured to be mounted as /data on the Object Service node.
+The two are documented as separate deployments below. Read [Part 1](#part-1-docker-compose)
+on its own if Docker Compose is all you need. [Part 2](#part-2-kubernetes-on-docker-desktop)
+does not replace Part 1 - it *builds on* it, deploying the container images that Part 1
+produces. See [How the two parts relate](#how-the-two-parts-relate).
 
-## Docker-Compose
-1. Run with `docker-compose up --build`
-2. Browse to http://localhost:8080 to access dashboard. The Object Service will run on http://localhost:8080/api
+This is the **Enterprise On-Prem** deployment: fully self-hosted, licensed, with no
+dependency on a 3LC-hosted account. For the 3LC-hosted variant, see
+[`../default`](../default/README.md).
 
-## Kubernetes via Docker Desktop
-1. Modify docker-desktop.yml to fit your environment. The current config assumes that current folder is in C:/tlc/kubernetes-deployment-sample/enterprise-customer-managed.
-   `licenseKey` is the cryptlex license key. `objectServiceAuthSecret` is the Object Service authentication secret.
-2. run 
-   ```
-   # Add bitnami repo so we can use the nginx chart from it
-   helm repo add bitnami https://charts.bitnami.com/bitnami
-   # Build the chart
-   helm dependency build ./helm
-   # Deploy the chart
-   helm upgrade -i tlc-demo ./helm --namespace tlc-demo --create-namespace -f docker-desktop.yml
-   ```
-3. Browse to http://localhost:30000 to access the Dashboard. The Object Service will run on http://localhost:30000/api
+## What gets deployed
 
+| Component | Image | Built from | Listens on | Purpose |
+| --- | --- | --- | --- | --- |
+| Object Service | `tlc-object-service:latest` | `object_service.Dockerfile` | 5015 | Serves 3LC table and run data |
+| Dashboard | `tlc-dashboard:latest` | `dashboard.Dockerfile` | 8080 | 3LC web UI |
+| nginx proxy | `nginx:alpine` | (pulled) | 80 | Single entry point; routes to the Dashboard and Object Service |
+
+Both 3LC images install from the **private** 3LC package repository and so require
+`TLC_PYPI_ACCESS_KEY` and `TLC_PYPI_SECRET_KEY` at build time. This is the main build-time
+difference from the Default deployment, which installs from the public index.
+
+### How the components authenticate
+
+Three distinct secrets:
+
+| Secret | Held by | Purpose |
+| --- | --- | --- |
+| `TLC_PYPI_ACCESS_KEY`, `TLC_PYPI_SECRET_KEY` | the Docker build | Download the `3lc` and `3lc-dashboard` wheels from the private repository. Build-time only; not present in the running containers. |
+| `TLC_LICENSE` | Object Service | 3LC license key, validated at startup. See [licensing](https://docs.3lc.ai/3lc/latest/getting-started/deployment-options/enterprise-on-prem/licensing.html). |
+| `TLC_OBJECT_SERVICE_AUTH_SECRET` | Dashboard **and** Object Service | Shared secret authenticating Dashboard-to-Object-Service requests. Must be identical on both. See [secure communication](https://docs.3lc.ai/3lc/latest/getting-started/deployment-options/enterprise-on-prem/secure-communication.html). |
+
+## Configuration
+
+Both parts need the same settings, but each takes them from a different place:
+
+| Setting | Docker Compose reads it from | Kubernetes reads it from |
+| --- | --- | --- |
+| PyPI access and secret keys | `.env`, passed as build args | not read; images are built by Part 1 |
+| License key | `TLC_LICENSE` in `.env` | `global.licenseKey` in `docker-desktop.yml` |
+| Object Service auth secret | `TLC_OBJECT_SERVICE_AUTH_SECRET` in `.env` | `global.objectServiceAuthSecret` in `docker-desktop.yml` |
+| Project storage location | the `./mounts/3lc` bind mount in `docker-compose.yml` | `global.pvc_host_path` in `docker-desktop.yml` |
+
+Before either part, create the project folder and the `.env` file:
+
+```bat
+mkdir mounts
+mkdir mounts\3lc
+mkdir mounts\3lc\project
+```
+
+`.env` (used by Docker Compose only; Kubernetes does not read it):
+
+```ini
+# Used to download the 3lc and 3lc-dashboard wheels from the private 3LC package repository
+TLC_PYPI_ACCESS_KEY=
+TLC_PYPI_SECRET_KEY=
+# Used for license authentication at startup of the tlc Python package and Object Service
+TLC_LICENSE=
+# Used to authenticate requests from the 3LC Dashboard to the Object Service
+TLC_OBJECT_SERVICE_AUTH_SECRET=
+```
+
+`mounts/3lc` is mounted as `/data/3lc` inside the Object Service container, and
+`TLC_CONFIG_PROJECT_ROOT_URL` points at `/data/3lc/project`, so 3LC projects written by
+the service appear in `mounts/3lc/project` on your machine.
+
+## Part 1: Docker Compose
+
+Self-contained. Requires only Docker.
+
+### Prerequisites
+
+1. Docker Desktop (WSL 2 backend on Windows)
+2. `.env` and `mounts/` created as described under [Configuration](#configuration)
+
+### Build and run
+
+```bash
+docker compose up --build
+```
+
+This builds `tlc-object-service:latest` and `tlc-dashboard:latest` and starts them behind
+the nginx proxy.
+
+### Access
+
+| URL | Serves |
+| --- | --- |
+| <http://localhost:8080> | Dashboard, through the nginx proxy |
+| <http://localhost:8080/api> | Object Service, through the nginx proxy |
+| <http://localhost:5001> | Dashboard, published directly (bypasses the proxy) |
+| <http://localhost:5002> | Object Service, published directly (bypasses the proxy) |
+
+`http://localhost:8080/api/live` is an unauthenticated health endpoint - a quick way to
+confirm the Object Service is up.
+
+Note the Dashboard is told where the Object Service is via a command override in
+`docker-compose.yml`: `--object-service http://localhost:8080/api`. That URL is resolved
+by the **browser**, not by the Dashboard container, which is why it is a `localhost`
+address rather than a container name.
+
+### Stop
+
+```bash
+docker compose down
+```
+
+### Where routing is defined
+
+`default.conf`, mounted into the nginx container at `/etc/nginx/conf.d/default.conf`.
+It proxies `/` to `dashboard:8080` and `/api/` to `object_service:5015`.
+
+> Kubernetes uses a **second, separate** copy of this routing (see
+> [Where routing is defined in Kubernetes](#where-routing-is-defined-in-kubernetes)).
+> If you change one, change the other.
+
+## Part 2: Kubernetes on Docker Desktop
+
+Builds on Part 1.
+
+### How the two parts relate
+
+The Helm chart **does not build images**. It deploys the images Part 1 built:
+
+```text
+docker compose up --build          Helm chart
+  |                                  |
+  +- builds tlc-object-service ------+ deploys it as the object-service Deployment
+  +- builds tlc-dashboard -----------+ deploys it as the dashboard Deployment
+  |                                  |
+  +- runs nginx with default.conf    + deploys bitnami/nginx with the equivalent
+                                       routing from helm/values.yaml
+```
+
+Two consequences:
+
+- **You must run the Part 1 build first.** `docker-desktop.yml` sets
+  `imagePullPolicy: Never`, which tells Kubernetes to use the images already in the local
+  Docker daemon and never contact a registry. Without the compose build, the pods fail
+  with `ErrImageNeverPull`.
+- **Docker Desktop's Kubernetes shares the local image daemon**, which is why this works
+  at all. On any other cluster you must push the images to a registry instead - see
+  [Deploying to a real cluster](#deploying-to-a-real-cluster).
+
+The PyPI keys are needed only by the Part 1 build, so they never appear in the Helm
+values. The license key and auth secret *are* needed at runtime, so they must be supplied
+again in `docker-desktop.yml`.
+
+### Additional prerequisites
+
+1. Everything from Part 1, and `docker compose build` (or `up --build`) has been run at least once
+2. Kubernetes enabled in Docker Desktop
+3. `helm` installed (Windows or WSL)
+
+### Configure
+
+Edit `docker-desktop.yml`:
+
+- `global.licenseKey` is your 3LC license key. Intentionally blank; the deploy fails
+  without it. Kubernetes does **not** read `.env`.
+- `global.objectServiceAuthSecret` is the shared Dashboard-to-Object-Service secret. Also
+  intentionally blank.
+- `global.dnsName` is how a **browser** reaches the deployment. `helm/values.yaml` builds
+  the Dashboard's Object Service URL as `http://{dnsName}/api`, so this must be an address
+  that resolves from the browser: `localhost:30000` locally, your real hostname otherwise.
+- `global.pvc_host_path` is the absolute path to this folder's `mounts` directory, in
+  Docker Desktop's host-mount form. A Windows path like
+  `C:\sources\tlc\3lc-deployment-examples\enterprise-on-prem\mounts` becomes
+  `/run/desktop/mnt/host/c/sources/tlc/3lc-deployment-examples/enterprise-on-prem/mounts`.
+  The checked-in value is an example and will not match your checkout.
+
+Both secrets are passed as plain values into the pod spec here, to keep the example
+readable. In a real deployment, use Kubernetes Secrets.
+
+### Deploy
+
+```bash
+./deploy.sh
+```
+
+or equivalently:
+
+```bash
+# Add the bitnami repo so the chart can resolve its nginx dependency
+helm repo add bitnami https://charts.bitnami.com/bitnami
+# Fetch chart dependencies listed in helm/requirements.yaml
+helm dependency build ./helm
+# Install or upgrade the release
+helm upgrade -i tlc-demo ./helm --namespace tlc-demo --create-namespace -f docker-desktop.yml
+```
+
+### Access through the NodePort
+
+| URL | Serves |
+| --- | --- |
+| <http://localhost:30000> | Dashboard, through the nginx proxy |
+| <http://localhost:30000/api> | Object Service, through the nginx proxy |
+
+Port 30000 is a NodePort pinned in `docker-desktop.yml` so the URL is predictable and
+matches `global.dnsName`. Note this differs from Part 1's port 8080 - the two can run side
+by side.
+
+### Verify
+
+```bash
+kubectl get pods -n tlc-demo
+curl http://localhost:30000/api/live
+```
+
+### Uninstall
+
+```bash
+helm uninstall tlc-demo --namespace tlc-demo
+```
+
+### Where routing is defined in Kubernetes
+
+`helm/values.yaml`, under `nginx.serverBlock`: a Go-templated nginx server block passed
+to the bitnami nginx chart. It is the Kubernetes counterpart to Part 1's `default.conf`
+and must be kept in sync with it by hand.
+
+### Deploying to a real cluster
+
+`docker-desktop.yml` is a values overlay for the local-cluster case. For a real cluster,
+supply your own overlay that changes:
+
+| Value | Local (`docker-desktop.yml`) | Real cluster |
+| --- | --- | --- |
+| `global.containerRegistry` | empty | your registry, with trailing `/` |
+| `global.imageTag` | `latest` | an immutable tag you pushed |
+| `dashboard.imagePullPolicy`, `object-service.imagePullPolicy` | `Never` | `Always` (the chart default) |
+| `global.dnsName` | `localhost:30000` | your real hostname; the Dashboard's Object Service URL is built from it |
+| `global.licenseKey`, `global.objectServiceAuthSecret` | plain values in the pod spec | Kubernetes Secrets |
+| `global.pvc_host_path` | a `hostPath` under Docker Desktop | a real PersistentVolumeClaim, replacing the `hostPath` volume |
+| `nginx.service.type` and `nginx.service.nodePorts` | `NodePort` pinned to 30000 | `LoadBalancer` or an Ingress |
+| replicas | `1`, hardcoded in the chart templates | set per component, with a PodDisruptionBudget |
+| resource requests and limits | not set | set per component |
+
+Push the images built in Part 1 under the registry name first:
+
+```bash
+docker tag tlc-object-service:latest <registry>/tlc-object-service:<tag>
+docker tag tlc-dashboard:latest      <registry>/tlc-dashboard:<tag>
+docker push <registry>/tlc-object-service:<tag>
+docker push <registry>/tlc-dashboard:<tag>
+```
+
+The `hostPath` volume is a demonstration convenience only - it pins the workload to one
+node and is not appropriate for production.
+
+## Layout
+
+| Path | Used by | Purpose |
+| --- | --- | --- |
+| `object_service.Dockerfile` | both | Object Service image definition |
+| `dashboard.Dockerfile` | both | Dashboard image definition |
+| `docker-compose.yml` | Part 1 - Docker | Service definitions, ports, env, bind mounts |
+| `default.conf` | Part 1 - Docker | nginx routing |
+| `.env` | Part 1 - Docker | Secrets and keys (not committed) |
+| `helm/` | Part 2 - Kubernetes | Umbrella chart: `values.yaml`, `requirements.yaml`, per-component charts |
+| `docker-desktop.yml` | Part 2 - Kubernetes | Values overlay for the local Docker Desktop cluster |
+| `deploy.sh` | Part 2 - Kubernetes | The three Helm commands above, scripted |
+| `mounts/` | both | Host-side project storage (not committed) |

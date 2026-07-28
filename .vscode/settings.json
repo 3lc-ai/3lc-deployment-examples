@@ -1,7 +1,10 @@
 {
     "cSpell.words": [
         "bitnami",
+        "cryptlex",
         "dockerhost",
+        "nodeport",
+        "pypi",
         "qoomon",
         "torchvision"
     ]
