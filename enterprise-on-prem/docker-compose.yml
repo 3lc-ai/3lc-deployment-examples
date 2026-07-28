@@ -24,7 +24,7 @@ services:
       - dashboard
 
   object_service:
-    image: "tlc-object-service:latest"
+    image: "tlc-enterprise-object-service:latest"
     build:
       dockerfile: object_service.Dockerfile
       args:
@@ -43,7 +43,7 @@ services:
       - "5002"
 
   dashboard:
-    image: "tlc-dashboard:latest"
+    image: "tlc-enterprise-dashboard:latest"
     build:
       dockerfile: dashboard.Dockerfile
       args:

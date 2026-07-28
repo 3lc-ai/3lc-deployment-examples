@@ -15,8 +15,8 @@ dependency on a 3LC-hosted account. For the 3LC-hosted variant, see
 
 | Component | Image | Built from | Listens on | Purpose |
 | --- | --- | --- | --- | --- |
-| Object Service | `tlc-object-service:latest` | `object_service.Dockerfile` | 5015 | Serves 3LC table and run data |
-| Dashboard | `tlc-dashboard:latest` | `dashboard.Dockerfile` | 8080 | 3LC web UI |
+| Object Service | `tlc-enterprise-object-service:latest` | `object_service.Dockerfile` | 5015 | Serves 3LC table and run data |
+| Dashboard | `tlc-enterprise-dashboard:latest` | `dashboard.Dockerfile` | 8080 | 3LC web UI |
 | nginx proxy | `nginx:alpine` | (pulled) | 80 | Single entry point; routes to the Dashboard and Object Service |
 
 Both 3LC images install from the **private** 3LC package repository and so require
@@ -83,7 +83,7 @@ Self-contained. Requires only Docker.
 docker compose up --build
 ```
 
-This builds `tlc-object-service:latest` and `tlc-dashboard:latest` and starts them behind
+This builds `tlc-enterprise-object-service:latest` and `tlc-enterprise-dashboard:latest` and starts them behind
 the nginx proxy.
 
 ### Access
@@ -127,13 +127,13 @@ Builds on Part 1.
 The Helm chart **does not build images**. It deploys the images Part 1 built:
 
 ```text
-docker compose up --build          Helm chart
-  |                                  |
-  +- builds tlc-object-service ------+ deploys it as the object-service Deployment
-  +- builds tlc-dashboard -----------+ deploys it as the dashboard Deployment
-  |                                  |
-  +- runs nginx with default.conf    + deploys bitnami/nginx with the equivalent
-                                       routing from helm/values.yaml
+docker compose up --build                      Helm chart
+  |                                            |
+  +- builds tlc-enterprise-object-service -----+ deploys it as the object-service Deployment
+  +- builds tlc-enterprise-dashboard ----------+ deploys it as the dashboard Deployment
+  |                                            |
+  +- runs nginx with default.conf              + deploys bitnami/nginx with the equivalent
+                                                 routing from helm/values.yaml
 ```
 
 Two consequences:
@@ -255,10 +255,10 @@ supply your own overlay that changes:
 Push the images built in Part 1 under the registry name first:
 
 ```bash
-docker tag tlc-object-service:latest <registry>/tlc-object-service:<tag>
-docker tag tlc-dashboard:latest      <registry>/tlc-dashboard:<tag>
-docker push <registry>/tlc-object-service:<tag>
-docker push <registry>/tlc-dashboard:<tag>
+docker tag tlc-enterprise-object-service:latest <registry>/tlc-enterprise-object-service:<tag>
+docker tag tlc-enterprise-dashboard:latest      <registry>/tlc-enterprise-dashboard:<tag>
+docker push <registry>/tlc-enterprise-object-service:<tag>
+docker push <registry>/tlc-enterprise-dashboard:<tag>
 ```
 
 The `hostPath` volume is a demonstration convenience only - it pins the workload to one
