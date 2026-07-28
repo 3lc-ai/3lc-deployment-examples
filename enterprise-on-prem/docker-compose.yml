@@ -49,7 +49,7 @@ services:
       args:
         - ACCESS_KEY=${TLC_PYPI_ACCESS_KEY}
         - SECRET_KEY=${TLC_PYPI_SECRET_KEY}
-        - DASHBOARD_VERSION=2.8.1
+        - DASHBOARD_VERSION=2.8.4
     environment:
       - TLC_OBJECT_SERVICE_AUTH_SECRET=${TLC_OBJECT_SERVICE_AUTH_SECRET}
     # Override the location of the Object Service with the expected full DNS address
