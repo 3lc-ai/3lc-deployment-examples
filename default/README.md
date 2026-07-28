@@ -15,7 +15,7 @@ This is the **Default** (3LC-hosted account) deployment. Components authenticate
 
 | Component | Image | Built from | Listens on | Purpose |
 | --- | --- | --- | --- | --- |
-| Object Service | `tlc-object-service:latest` | `object_service.Dockerfile` | 5015 | Serves 3LC table and run data |
+| Object Service | `tlc-default-object-service:latest` | `object_service.Dockerfile` | 5015 | Serves 3LC table and run data |
 | nginx proxy | `nginx:alpine` | (pulled) | 80 | Single entry point; routes to the Object Service |
 
 The Object Service is the `3lc` Python package's built-in service (`3lc service`), so the
@@ -64,7 +64,7 @@ Self-contained. Requires only Docker.
 docker compose up --build
 ```
 
-This builds `tlc-object-service:latest` from `object_service.Dockerfile` and starts it
+This builds `tlc-default-object-service:latest` from `object_service.Dockerfile` and starts it
 behind the nginx proxy.
 
 ### Access
@@ -101,12 +101,12 @@ Builds on Part 1.
 The Helm chart **does not build images**. It deploys the images Part 1 built:
 
 ```text
-docker compose up --build         Helm chart
-  |                                 |
-  +- builds tlc-object-service -----+ deploys it as the object-service Deployment
-  |                                 |
-  +- runs nginx with default.conf   + deploys bitnami/nginx with the equivalent
-                                      routing from helm/values.yaml
+docker compose up --build                   Helm chart
+  |                                         |
+  +- builds tlc-default-object-service -----+ deploys it as the object-service Deployment
+  |                                         |
+  +- runs nginx with default.conf           + deploys bitnami/nginx with the equivalent
+                                              routing from helm/values.yaml
 ```
 
 Two consequences:
@@ -207,8 +207,8 @@ built from it.
 Push the images built in Part 1 under the registry name first:
 
 ```bash
-docker tag tlc-object-service:latest <registry>/tlc-object-service:<tag>
-docker push <registry>/tlc-object-service:<tag>
+docker tag tlc-default-object-service:latest <registry>/tlc-default-object-service:<tag>
+docker push <registry>/tlc-default-object-service:<tag>
 ```
 
 The `hostPath` volume is a demonstration convenience only - it pins the workload to one

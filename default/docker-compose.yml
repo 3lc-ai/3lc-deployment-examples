@@ -23,7 +23,7 @@ services:
       - object_service
 
   object_service:
-    image: "tlc-object-service:latest"
+    image: "tlc-default-object-service:latest"
     build:
       dockerfile: object_service.Dockerfile
       args:
