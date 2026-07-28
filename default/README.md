@@ -119,14 +119,46 @@ Two consequences:
   Docker daemon and never contact a registry. Without the compose build, the pod fails
   with `ErrImageNeverPull`.
 - **Docker Desktop's Kubernetes shares the local image daemon**, which is why this works
-  at all. On any other cluster you must push the images to a registry instead - see
+  at all. This holds only for the Docker Desktop provisioning method, not kind - see
+  [Kubernetes provisioning method](#kubernetes-provisioning-method). On any other
+  cluster you must push the images to a registry instead - see
   [Deploying to a real cluster](#deploying-to-a-real-cluster).
 
 ### Additional prerequisites
 
 1. Everything from Part 1, and `docker compose build` (or `up --build`) has been run at least once
-2. Kubernetes enabled in Docker Desktop
+2. Kubernetes enabled in Docker Desktop, using the **Docker Desktop** provisioning
+   method (see below)
 3. `helm` installed (Windows or WSL)
+
+#### Kubernetes provisioning method
+
+Docker Desktop can provision its cluster two ways, chosen under
+**Settings > Kubernetes > Cluster settings**. These examples require the **Docker
+Desktop** method, not **kind**. Check which you have with:
+
+```bash
+kubectl --context docker-desktop get nodes
+```
+
+| Node name | Provisioner | Works with these examples |
+| --- | --- | --- |
+| `docker-desktop` | Docker Desktop (kubeadm) | Yes |
+| `desktop-control-plane` | kind | No |
+
+The difference that matters is the image store. The Docker Desktop cluster shares the
+Docker engine's images, which is what lets `imagePullPolicy: Never` find the images Part
+1 built. A kind cluster runs its nodes as containers with their own containerd, so the
+same deployment fails with `ErrImageNeverPull`, and the pinned NodePort is unreachable on
+`localhost` because the node container publishes no ports.
+
+If you must use kind, load each locally built image into the node first, and reach the
+services with `kubectl port-forward` rather than the NodePort:
+
+```bash
+docker save <image>:latest | docker exec -i desktop-control-plane ctr -n k8s.io images import -
+kubectl --context docker-desktop -n tlc-demo port-forward svc/tlc-demo-nginx 8080:80
+```
 
 ### Configure
 
