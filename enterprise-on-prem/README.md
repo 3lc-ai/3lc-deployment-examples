@@ -44,7 +44,7 @@ Both parts need the same settings, but each takes them from a different place:
 | Object Service auth secret | `TLC_OBJECT_SERVICE_AUTH_SECRET` in `.env` | `global.objectServiceAuthSecret` in `docker-desktop.yml` |
 | Project storage location | the `./mounts/3lc` bind mount in `docker-compose.yml` | `global.pvc_host_path` in `docker-desktop.yml` |
 
-Before either part, create the project folder and the `.env` file:
+Before either part, create the project folder:
 
 ```bat
 mkdir mounts
@@ -52,17 +52,15 @@ mkdir mounts\3lc
 mkdir mounts\3lc\project
 ```
 
-`.env` (used by Docker Compose only; Kubernetes does not read it):
+Then copy `.env.example` to `.env` **in this folder** and fill it in:
 
-```ini
-# Used to download the 3lc and 3lc-dashboard wheels from the private 3LC package repository
-TLC_PYPI_ACCESS_KEY=
-TLC_PYPI_SECRET_KEY=
-# Used for license authentication at startup of the tlc Python package and Object Service
-TLC_LICENSE=
-# Used to authenticate requests from the 3LC Dashboard to the Object Service
-TLC_OBJECT_SERVICE_AUTH_SECRET=
+```bash
+cp .env.example .env        # Windows cmd: copy .env.example .env
 ```
+
+Docker Compose reads `.env` from the directory it runs in, so it must sit next to
+`docker-compose.yml`. A `.env` at the repository root is **not** read. Kubernetes does not
+read it at all, see [Configure](#configure) in Part 2.
 
 `mounts/3lc` is mounted as `/data/3lc` inside the Object Service container, and
 `TLC_CONFIG_PROJECT_ROOT_URL` points at `/data/3lc/project`, so 3LC projects written by
@@ -272,7 +270,8 @@ node and is not appropriate for production.
 | `dashboard.Dockerfile` | both | Dashboard image definition |
 | `docker-compose.yml` | Part 1 - Docker | Service definitions, ports, env, bind mounts |
 | `default.conf` | Part 1 - Docker | nginx routing |
-| `.env` | Part 1 - Docker | Secrets and keys (not committed) |
+| `.env.example` | Part 1 - Docker | Template listing the required variables |
+| `.env` | Part 1 - Docker | Your filled-in copy of `.env.example` (not committed) |
 | `helm/` | Part 2 - Kubernetes | Umbrella chart: `values.yaml`, `requirements.yaml`, per-component charts |
 | `docker-desktop.yml` | Part 2 - Kubernetes | Values overlay for the local Docker Desktop cluster |
 | `deploy.sh` | Part 2 - Kubernetes | The three Helm commands above, scripted |

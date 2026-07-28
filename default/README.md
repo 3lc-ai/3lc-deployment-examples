@@ -30,7 +30,7 @@ Both parts read the same two settings, but each takes them from a different plac
 | 3LC account API key | `TLC_API_KEY` in `.env` | `global.apiKey` in `docker-desktop.yml` |
 | Project storage location | the `./mounts/3lc` bind mount in `docker-compose.yml` | `global.pvc_host_path` in `docker-desktop.yml` |
 
-Before either part, create the project folder and the `.env` file:
+Before either part, create the project folder:
 
 ```bat
 mkdir mounts
@@ -38,12 +38,15 @@ mkdir mounts\3lc
 mkdir mounts\3lc\project
 ```
 
-`.env` (used by Docker Compose only; Kubernetes does not read it):
+Then copy `.env.example` to `.env` **in this folder** and fill it in:
 
-```ini
-# 3LC account API key, used by the Object Service to authorize requests
-TLC_API_KEY=
+```bash
+cp .env.example .env        # Windows cmd: copy .env.example .env
 ```
+
+Docker Compose reads `.env` from the directory it runs in, so it must sit next to
+`docker-compose.yml`. A `.env` at the repository root is **not** read. Kubernetes does not
+read it at all, see [Configure](#configure) in Part 2.
 
 `mounts/3lc` is mounted as `/data/3lc` inside the Object Service container, and
 `TLC_CONFIG_PROJECT_ROOT_URL` points at `/data/3lc/project`, so 3LC projects written by
@@ -233,7 +236,8 @@ node and is not appropriate for production.
 | `object_service.Dockerfile` | both | Object Service image definition |
 | `docker-compose.yml` | Part 1 - Docker | Service definitions, ports, env, bind mounts |
 | `default.conf` | Part 1 - Docker | nginx routing |
-| `.env` | Part 1 - Docker | Secrets and keys (not committed) |
+| `.env.example` | Part 1 - Docker | Template listing the required variables |
+| `.env` | Part 1 - Docker | Your filled-in copy of `.env.example` (not committed) |
 | `helm/` | Part 2 - Kubernetes | Umbrella chart: `values.yaml`, `requirements.yaml`, per-component charts |
 | `docker-desktop.yml` | Part 2 - Kubernetes | Values overlay for the local Docker Desktop cluster |
 | `deploy.sh` | Part 2 - Kubernetes | The three Helm commands above, scripted |
