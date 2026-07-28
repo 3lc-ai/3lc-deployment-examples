@@ -8,8 +8,8 @@
 # </copyright>
 #=============================================================================
 
-# The python version should be 3.9 - 3.13.
-FROM python:3.11
+# The python version should be 3.10 - 3.13.
+FROM python:3.12
 
 ARG TLC_VERSION
 
