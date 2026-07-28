@@ -28,11 +28,8 @@ echo "                  cluster : $(kubectl config view -o jsonpath="{.contexts[
 echo "  (your current context is: $(kubectl config current-context))"
 echo
 
-# Add bitnami repo so we can use the nginx chart from it
-helm repo add bitnami https://charts.bitnami.com/bitnami
-# Build the chart
-helm dependency build ./helm
-# Deploy the chart
+# Deploy the chart. All subcharts are local, under helm/charts, so there is
+# no chart repository to add and no dependencies to fetch.
 helm upgrade -i tlc-demo ./helm \
   --kube-context "${KUBE_CONTEXT}" \
   --namespace tlc-demo --create-namespace \

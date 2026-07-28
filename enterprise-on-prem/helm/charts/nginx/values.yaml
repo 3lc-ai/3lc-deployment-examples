@@ -1,0 +1,33 @@
+#=============================================================================
+# <copyright>
+# Copyright (c) 2024 3LC Inc. All rights reserved.
+#
+# All rights are reserved. Reproduction or transmission in whole or in part, in
+# any form or by any means, electronic, mechanical or otherwise, is prohibited
+# without the prior written permission of the copyright owner.
+# </copyright>
+#=============================================================================
+
+# The official nginx image, the same one docker-compose.yml uses for the proxy.
+# This is a rolling tag; pin it (for example nginx:1.27-alpine) if you need
+# reproducible deployments.
+image: nginx:alpine
+imagePullPolicy: IfNotPresent
+
+# Port nginx listens on inside the container. Must match the `listen` directive
+# in the serverBlock supplied by the parent chart.
+containerPort: 8080
+
+service:
+  type: NodePort
+  # Port the Service exposes. Traffic is forwarded to containerPort.
+  port: 80
+  nodePorts:
+    # Left empty so Kubernetes assigns one. docker-desktop.yml pins this to
+    # 30000 to give the local deployment a predictable URL.
+    http:
+
+# nginx configuration, mounted as /etc/nginx/conf.d/default.conf.
+# Supplied by the parent chart's values.yaml and rendered as a template, so it
+# can reference {{ .Release.Name }} to address the other services.
+serverBlock: ""
