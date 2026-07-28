@@ -141,7 +141,9 @@ Two consequences:
   Docker daemon and never contact a registry. Without the compose build, the pods fail
   with `ErrImageNeverPull`.
 - **Docker Desktop's Kubernetes shares the local image daemon**, which is why this works
-  at all. On any other cluster you must push the images to a registry instead - see
+  at all. This holds only for the Kubeadm provisioning method, not kind - see
+  [Cluster provisioning method](#cluster-provisioning-method). On any other
+  cluster you must push the images to a registry instead - see
   [Deploying to a real cluster](#deploying-to-a-real-cluster).
 
 The PyPI keys are needed only by the Part 1 build, so they never appear in the Helm
@@ -151,8 +153,31 @@ again in `docker-desktop.yml`.
 ### Additional prerequisites
 
 1. Everything from Part 1, and `docker compose build` (or `up --build`) has been run at least once
-2. Kubernetes enabled in Docker Desktop
+2. Kubernetes enabled in Docker Desktop, using the **Kubeadm** cluster provisioning
+   method (see below)
 3. `helm` installed (Windows or WSL)
+
+#### Cluster provisioning method
+
+Docker Desktop can provision its cluster two ways, chosen under
+**Settings > Kubernetes > Cluster settings**. These examples require **Kubeadm**, not
+**kind**. Check which you have with:
+
+```bash
+kubectl --context docker-desktop get nodes
+```
+
+| Node name | Provisioning method | Works with these examples |
+| --- | --- | --- |
+| `docker-desktop` | Kubeadm | Yes |
+| `desktop-control-plane` | kind | No |
+
+The difference that matters is the image store. A Kubeadm cluster shares the Docker
+engine's images, which is what lets `imagePullPolicy: Never` find the images Part 1
+built. kind instead requires Docker Desktop's containerd image store, as its entry in the
+settings dialog notes, and runs its nodes as containers with their own containerd. The
+same deployment therefore fails with `ErrImageNeverPull`, and the pinned NodePort is
+unreachable on `localhost` because the node container publishes no ports.
 
 ### Configure
 
