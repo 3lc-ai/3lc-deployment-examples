@@ -17,6 +17,7 @@ dependency on a 3LC-hosted account. For the 3LC-hosted variant, see
 | --- | --- | --- | --- | --- |
 | Object Service | `tlc-enterprise-object-service:latest` | `object_service.Dockerfile` | 5015 | Serves 3LC table and run data |
 | Dashboard | `tlc-enterprise-dashboard:latest` | `dashboard.Dockerfile` | 8080 | 3LC web UI |
+| Compute Service | `tlc-enterprise-compute-service:latest` | `compute_service.Dockerfile` | 5020 | Insights, training, import and export |
 | nginx proxy | `nginx:alpine` | (pulled) | 80 | Single entry point; routes to the Dashboard and Object Service |
 
 Both 3LC images install from the **private** 3LC package repository and so require
@@ -81,8 +82,8 @@ Self-contained. Requires only Docker.
 docker compose up --build
 ```
 
-This builds `tlc-enterprise-object-service:latest` and `tlc-enterprise-dashboard:latest` and starts them behind
-the nginx proxy.
+This builds `tlc-enterprise-object-service:latest`, `tlc-enterprise-dashboard:latest` and
+`tlc-enterprise-compute-service:latest`, and starts them behind the nginx proxy.
 
 ### Access
 
@@ -90,8 +91,10 @@ the nginx proxy.
 | --- | --- |
 | <http://localhost:8080> | Dashboard, through the nginx proxy |
 | <http://localhost:8080/api> | Object Service, through the nginx proxy |
+| <http://localhost:8080/compute> | Compute Service, through the nginx proxy |
 | <http://localhost:5001> | Dashboard, published directly (bypasses the proxy) |
 | <http://localhost:5002> | Object Service, published directly (bypasses the proxy) |
+| <http://localhost:5003> | Compute Service, published directly (bypasses the proxy) |
 
 `http://localhost:8080/api/live` is an unauthenticated health endpoint - a quick way to
 confirm the Object Service is up.
@@ -232,6 +235,7 @@ helm upgrade -i tlc-demo ./helm \
 | --- | --- |
 | <http://localhost:30000> | Dashboard, through the nginx proxy |
 | <http://localhost:30000/api> | Object Service, through the nginx proxy |
+| <http://localhost:30000/compute> | Compute Service, through the nginx proxy |
 
 Port 30000 is a NodePort pinned in `docker-desktop.yml` so the URL is predictable and
 matches `global.dnsName`. Note this differs from Part 1's port 8080 - the two can run side
@@ -266,7 +270,7 @@ supply your own overlay that changes:
 | --- | --- | --- |
 | `global.containerRegistry` | empty | your registry, with trailing `/` |
 | `global.imageTag` | `latest` | an immutable tag you pushed |
-| `dashboard.imagePullPolicy`, `object-service.imagePullPolicy` | `Never` | `Always` (the chart default) |
+| `dashboard.imagePullPolicy`, `object-service.imagePullPolicy`, `compute-service.imagePullPolicy` | `Never` | `Always` (the chart default) |
 | `global.dnsName` | `localhost:30000` | your real hostname; the Dashboard's Object Service URL is built from it |
 | `global.licenseKey`, `global.objectServiceAuthSecret` | plain values in the pod spec | Kubernetes Secrets |
 | `global.pvc_host_path` | a `hostPath` under Docker Desktop | a real PersistentVolumeClaim, replacing the `hostPath` volume |
@@ -277,10 +281,12 @@ supply your own overlay that changes:
 Push the images built in Part 1 under the registry name first:
 
 ```bash
-docker tag tlc-enterprise-object-service:latest <registry>/tlc-enterprise-object-service:<tag>
-docker tag tlc-enterprise-dashboard:latest      <registry>/tlc-enterprise-dashboard:<tag>
+docker tag tlc-enterprise-object-service:latest  <registry>/tlc-enterprise-object-service:<tag>
+docker tag tlc-enterprise-dashboard:latest       <registry>/tlc-enterprise-dashboard:<tag>
+docker tag tlc-enterprise-compute-service:latest <registry>/tlc-enterprise-compute-service:<tag>
 docker push <registry>/tlc-enterprise-object-service:<tag>
 docker push <registry>/tlc-enterprise-dashboard:<tag>
+docker push <registry>/tlc-enterprise-compute-service:<tag>
 ```
 
 The `hostPath` volume is a demonstration convenience only - it pins the workload to one
@@ -306,6 +312,7 @@ requires authentication. That is expected, and not a sign of a broken deployment
 | --- | --- | --- |
 | `object_service.Dockerfile` | both | Object Service image definition |
 | `dashboard.Dockerfile` | both | Dashboard image definition |
+| `compute_service.Dockerfile` | both | Compute Service image definition |
 | `docker-compose.yml` | Part 1 - Docker | Service definitions, ports, env, bind mounts |
 | `default.conf` | Part 1 - Docker | nginx routing |
 | `.env.example` | Part 1 - Docker | Template listing the required variables |
