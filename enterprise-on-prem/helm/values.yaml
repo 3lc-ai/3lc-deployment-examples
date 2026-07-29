@@ -8,13 +8,6 @@
 # </copyright>
 #=============================================================================
 
-
-dashboard:
-  # tlc-enterprise-dashboard is the name used in docker-compose when building the docker image. Change according to the desired name in container registry.
-  image: "{{ .Values.global.containerRegistry }}tlc-enterprise-dashboard:{{ .Values.global.imageTag }}"
-  objectServiceUrl: "http://{{ .Values.global.dnsName }}/api"
-  objectServiceAuthSecret: "{{ .Values.global.objectServiceAuthSecret }}"
-
 object-service:
   # tlc-enterprise-object-service is the name used in docker-compose when building the docker image. Change according to the desired name in container registry.
   image: "{{ .Values.global.containerRegistry }}tlc-enterprise-object-service:{{ .Values.global.imageTag }}"
@@ -29,6 +22,21 @@ compute-service:
   objectServiceAuthSecret: "{{ .Values.global.objectServiceAuthSecret }}"
   pvc_host_path: "{{ .Values.global.pvc_host_path }}"
 
+dashboard:
+  # tlc-enterprise-dashboard is the name used in docker-compose when building the docker image. Change according to the desired name in container registry.
+  image: "{{ .Values.global.containerRegistry }}tlc-enterprise-dashboard:{{ .Values.global.imageTag }}"
+  objectServiceUrl: "http://{{ .Values.global.dnsName }}/api"
+  objectServiceAuthSecret: "{{ .Values.global.objectServiceAuthSecret }}"
+
+hub-frontend:
+  # tlc-enterprise-hub-frontend is the name used in docker-compose when building the docker image. Change according to the desired name in container registry.
+  image: "{{ .Values.global.containerRegistry }}tlc-enterprise-hub-frontend:{{ .Values.global.imageTag }}"
+  objectServiceAuthSecret: "{{ .Values.global.objectServiceAuthSecret }}"
+  # Browser-facing addresses, so built from dnsName like the Dashboard's objectServiceUrl.
+  objectServiceUrl: "http://{{ .Values.global.dnsName }}/api"
+  computeServiceUrl: "http://{{ .Values.global.dnsName }}/compute"
+  dashboardUrl: "http://{{ .Values.global.dnsName }}/dashboard"
+
 nginx:
   service:
     type: NodePort
@@ -39,27 +47,70 @@ nginx:
   serverBlock: |-
     server {
       listen 0.0.0.0:8080;
-      location / {
-        proxy_pass http://{{ .Release.Name }}-dashboard:8080/;
-        proxy_redirect     off;
-        proxy_set_header   Host $http_host;
-        proxy_set_header   X-Real-IP $remote_addr;
-        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
-      }
-      
+      # Pass everything after /api as is to the root of the Object Service.
       location /api/ {
-        proxy_pass http://{{ .Release.Name }}-object-service:5015/;
-        proxy_redirect     off;
-        proxy_set_header   Host $http_host;
-        proxy_set_header   X-Real-IP $remote_addr;
-        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_pass http://{{ .Release.Name }}-object-service:5015/;
+          proxy_redirect     off;
+          proxy_set_header   Host $http_host;
+          proxy_set_header   X-Real-IP $remote_addr;
+          proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
       }
+
+      # Pass everything after /compute as is to the root of the Compute Service.
       location /compute/ {
-        proxy_pass http://{{ .Release.Name }}-compute-service:5020/;
-        proxy_redirect     off;
-        proxy_set_header   Host $http_host;
-        proxy_set_header   X-Real-IP $remote_addr;
-        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_pass http://{{ .Release.Name }}-compute-service:5020/;
+          proxy_redirect     off;
+          proxy_set_header   Host $http_host;
+          proxy_set_header   X-Real-IP $remote_addr;
+          proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+
+      # Dashboard assets are relative and webpack resolves chunks from the script URL, so it
+      # tolerates the prefix.
+      location /dashboard/ {
+          proxy_pass http://{{ .Release.Name }}-dashboard:8080/;
+          proxy_redirect     off;
+          proxy_set_header   Host $http_host;
+          proxy_set_header   X-Real-IP $remote_addr;
+          proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+
+      # The two directories the Dashboard references by absolute path, which therefore do not
+      # pick up the /dashboard/ prefix: index.html hardcodes /icons/3lc_top_left.png for the
+      # favicon, and /workflow_images/ is its other asset directory. These are the only two
+      # directories in the Dashboard's web root; check that still holds when upgrading it.
+      location /icons/ {
+          proxy_pass http://{{ .Release.Name }}-dashboard:8080/icons/;
+          proxy_redirect     off;
+          proxy_set_header   Host $http_host;
+      }
+
+      location /workflow_images/ {
+          proxy_pass http://{{ .Release.Name }}-dashboard:8080/workflow_images/;
+          proxy_redirect     off;
+          proxy_set_header   Host $http_host;
+      }
+
+      # The Hub is the primary entry point and owns the root of the URL space. It cannot be
+      # served under a path prefix: the wheel passes no url_prefix to waitress, exposes no
+      # flag to set one, and its templates emit hardcoded absolute links such as /projects.
+      location / {
+          proxy_pass http://{{ .Release.Name }}-hub-frontend:8081/;
+          proxy_redirect     off;
+          proxy_set_header   Host $http_host;
+          proxy_set_header   X-Real-IP $remote_addr;
+          proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+
+      # The Hub serves its own /api/tips, but /api/ above is the Object Service. An exact
+      # match takes precedence over the prefix match, so this one route stays with the Hub.
+      # Revisit if the Hub grows more /api routes; the namespaces genuinely collide.
+      location = /api/tips {
+          proxy_pass http://{{ .Release.Name }}-hub-frontend:8081/api/tips;
+          proxy_redirect     off;
+          proxy_set_header   Host $http_host;
+          proxy_set_header   X-Real-IP $remote_addr;
+          proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
       }
     }
 

@@ -1,0 +1,58 @@
+#=============================================================================
+# <copyright>
+# Copyright (c) 2026 3LC Inc. All rights reserved.
+#
+# All rights are reserved. Reproduction or transmission in whole or in part, in
+# any form or by any means, electronic, mechanical or otherwise, is prohibited
+# without the prior written permission of the copyright owner.
+# </copyright>
+#=============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+      release: {{ .Release.Name }}
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+        chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+        heritage: {{ .Release.Service }}
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: {{ .Release.Name }}-{{ .Chart.Name }}
+          image: "{{- tpl .Values.image . }}"
+          imagePullPolicy: {{ tpl .Values.imagePullPolicy . }}
+          ports:
+            - name: http-server
+              containerPort: {{ required "required" .Values.servicePort }}
+          livenessProbe:
+            httpGet:
+              # The Hub serves its landing page at the root
+              path: /
+              port: http-server
+            initialDelaySeconds: 60
+            timeoutSeconds: 20
+            failureThreshold: 6
+          env:
+            # TLC_OBJECT_SERVICE_AUTH_SECRET is required in enterprise settings. This should be the
+            # same strong, random string used by the Dashboard and Object Service. The Hub refuses
+            # to start without it.
+            # This can also be configured as a Kubernetes secret for more security. For the sake of the demo, a Kubernetes secret is not used.
+            - name: TLC_OBJECT_SERVICE_AUTH_SECRET
+              value: "{{ tpl .Values.objectServiceAuthSecret . }}"
+            # These three URLs are resolved by the BROWSER, not by this container, so they are
+            # built from global.dnsName rather than from in-cluster Service names.
+            - name: TLC_OBJECT_SERVICE_URL
+              value: "{{ tpl .Values.objectServiceUrl . }}"
+            - name: TLC_COMPUTE_SERVICE_URL
+              value: "{{ tpl .Values.computeServiceUrl . }}"
+            - name: TLC_DASHBOARD_URL
+              value: "{{ tpl .Values.dashboardUrl . }}"
