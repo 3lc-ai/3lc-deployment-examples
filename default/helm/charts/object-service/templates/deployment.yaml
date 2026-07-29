@@ -35,7 +35,7 @@ spec:
               mountPath: /data
           ports:
             - name: http-server
-              containerPort: {{ required "required" .Values.servicePort }}
+              containerPort: {{ required "object-service: servicePort is required" .Values.servicePort }}
           livenessProbe:
             httpGet:
               # The Object Service exposes /live, which can be used by for checking reachability without authorization

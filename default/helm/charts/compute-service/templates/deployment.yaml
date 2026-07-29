@@ -35,7 +35,7 @@ spec:
               mountPath: /data
           ports:
             - name: http-server
-              containerPort: {{ required "required" .Values.servicePort }}
+              containerPort: {{ required "compute-service: servicePort is required" .Values.servicePort }}
           livenessProbe:
             httpGet:
               # The Compute Service exposes /health, which reports its status and version
