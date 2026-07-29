@@ -23,6 +23,7 @@ services:
       - object_service
       - compute_service
       - dashboard
+      - hub_frontend
 
   object_service:
     image: "tlc-enterprise-object-service:latest"
@@ -43,6 +44,23 @@ services:
     expose:
       - "5002"
 
+  compute_service:
+    image: "tlc-enterprise-compute-service:latest"
+    build:
+      dockerfile: compute_service.Dockerfile
+      args:
+        - TLC_COMPUTE_VERSION=0.2.1
+    environment:
+      - TLC_LICENSE=${TLC_LICENSE}
+      - TLC_OBJECT_SERVICE_AUTH_SECRET=${TLC_OBJECT_SERVICE_AUTH_SECRET}
+      - TLC_PROJECT_ROOT_URL=/data/3lc/project
+    volumes:
+      - ./mounts/3lc:/data/3lc
+    ports:
+      - 5003:5020
+    expose:
+      - "5020"
+
   dashboard:
     image: "tlc-enterprise-dashboard:latest"
     build:
@@ -60,22 +78,25 @@ services:
     expose:
       - "5001"
 
-  compute_service:
-    image: "tlc-enterprise-compute-service:latest"
+  hub_frontend:
+    image: "tlc-enterprise-hub-frontend:latest"
     build:
-      dockerfile: compute_service.Dockerfile
+      dockerfile: hub_frontend.Dockerfile
       args:
-        - TLC_COMPUTE_VERSION=0.2.1
+        - ACCESS_KEY=${TLC_PYPI_ACCESS_KEY}
+        - SECRET_KEY=${TLC_PYPI_SECRET_KEY}
+        - TLC_HUB_FRONTEND_VERSION=0.1.3
     environment:
-      - TLC_LICENSE=${TLC_LICENSE}
       - TLC_OBJECT_SERVICE_AUTH_SECRET=${TLC_OBJECT_SERVICE_AUTH_SECRET}
-      - TLC_PROJECT_ROOT_URL=/data/3lc/project
-    volumes:
-      - ./mounts/3lc:/data/3lc
+      # These three are resolved by the BROWSER, not by this container, so they are proxy
+      # addresses rather than container names.
+      - TLC_OBJECT_SERVICE_URL=http://localhost:8080/api
+      - TLC_COMPUTE_SERVICE_URL=http://localhost:8080/compute
+      - TLC_DASHBOARD_URL=http://localhost:8080/dashboard
     ports:
-      - 5003:5020
+      - 5004:8081
     expose:
-      - "5020"
+      - "8081"
 
   # Using docker-host image to access host network from inside of portal container
   dockerhost:

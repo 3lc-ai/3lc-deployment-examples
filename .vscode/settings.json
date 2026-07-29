@@ -3,9 +3,11 @@
         "bitnami",
         "cryptlex",
         "dockerhost",
+        "hmac",
         "nodeport",
         "pypi",
         "qoomon",
-        "torchvision"
+        "torchvision",
+        "waitress"
     ]
 }

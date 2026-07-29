@@ -16,13 +16,15 @@ dependency on a 3LC-hosted account. For the 3LC-hosted variant, see
 | Component | Image | Built from | Listens on | Purpose |
 | --- | --- | --- | --- | --- |
 | Object Service | `tlc-enterprise-object-service:latest` | `object_service.Dockerfile` | 5015 | Serves 3LC table and run data |
-| Dashboard | `tlc-enterprise-dashboard:latest` | `dashboard.Dockerfile` | 8080 | 3LC web UI |
 | Compute Service | `tlc-enterprise-compute-service:latest` | `compute_service.Dockerfile` | 5020 | Insights, training, import and export |
-| nginx proxy | `nginx:alpine` | (pulled) | 80 | Single entry point; routes to the Dashboard and Object Service |
+| Dashboard | `tlc-enterprise-dashboard:latest` | `dashboard.Dockerfile` | 8080 | 3LC web UI |
+| Hub | `tlc-enterprise-hub-frontend:latest` | `hub_frontend.Dockerfile` | 8081 | 3LC Hub, the primary web entry point |
+| nginx proxy | `nginx:alpine` | (pulled) | 80 | Single entry point; routes to all of the above |
 
-Both 3LC images install from the **private** 3LC package repository and so require
-`TLC_PYPI_ACCESS_KEY` and `TLC_PYPI_SECRET_KEY` at build time. This is the main build-time
-difference from the Default deployment, which installs from the public index.
+The Object Service, Dashboard and Hub images install from the **private** 3LC package
+repository and so require `TLC_PYPI_ACCESS_KEY` and `TLC_PYPI_SECRET_KEY` at build time.
+The Compute Service is the exception: it installs from the public indexes, like the
+Default deployment does for everything.
 
 ### How the components authenticate
 
@@ -30,9 +32,9 @@ Three distinct secrets:
 
 | Secret | Held by | Purpose |
 | --- | --- | --- |
-| `TLC_PYPI_ACCESS_KEY`, `TLC_PYPI_SECRET_KEY` | the Docker build | Download the `3lc` and `3lc-dashboard` wheels from the private repository. Build-time only; not present in the running containers. |
-| `TLC_LICENSE` | Object Service | 3LC license key, validated at startup. See [licensing](https://docs.3lc.ai/3lc/latest/getting-started/deployment-options/enterprise-on-prem/licensing.html). |
-| `TLC_OBJECT_SERVICE_AUTH_SECRET` | Dashboard **and** Object Service | Shared secret authenticating Dashboard-to-Object-Service requests. Must be identical on both. See [secure communication](https://docs.3lc.ai/3lc/latest/getting-started/deployment-options/enterprise-on-prem/secure-communication.html). |
+| `TLC_PYPI_ACCESS_KEY`, `TLC_PYPI_SECRET_KEY` | the Docker build | Download the `3lc`, `3lc-dashboard` and `3lc-hub-frontend` wheels from the private repository. Build-time only; not present in the running containers. |
+| `TLC_LICENSE` | Object Service, Compute Service | 3LC license key, validated at startup. See [licensing](https://docs.3lc.ai/3lc/latest/getting-started/deployment-options/enterprise-on-prem/licensing.html). |
+| `TLC_OBJECT_SERVICE_AUTH_SECRET` | Object Service, Compute Service, Dashboard, Hub | Shared HMAC secret, identical for all four. The Object Service and Compute Service use it to authenticate incoming requests; the Dashboard and Hub present it. The Compute Service and the Hub both refuse to start without it. See [secure communication](https://docs.3lc.ai/3lc/latest/getting-started/deployment-options/enterprise-on-prem/secure-communication.html). |
 
 ## Configuration
 
@@ -82,19 +84,22 @@ Self-contained. Requires only Docker.
 docker compose up --build
 ```
 
-This builds `tlc-enterprise-object-service:latest`, `tlc-enterprise-dashboard:latest` and
-`tlc-enterprise-compute-service:latest`, and starts them behind the nginx proxy.
+This builds `tlc-enterprise-object-service:latest`,
+`tlc-enterprise-compute-service:latest`, `tlc-enterprise-dashboard:latest` and
+`tlc-enterprise-hub-frontend:latest`, and starts them behind the nginx proxy.
 
 ### Access
 
 | URL | Serves |
 | --- | --- |
-| <http://localhost:8080> | Dashboard, through the nginx proxy |
 | <http://localhost:8080/api> | Object Service, through the nginx proxy |
 | <http://localhost:8080/compute> | Compute Service, through the nginx proxy |
-| <http://localhost:5001> | Dashboard, published directly (bypasses the proxy) |
+| <http://localhost:8080/dashboard/> | Dashboard, through the nginx proxy |
+| <http://localhost:8080> | Hub, through the nginx proxy |
 | <http://localhost:5002> | Object Service, published directly (bypasses the proxy) |
 | <http://localhost:5003> | Compute Service, published directly (bypasses the proxy) |
+| <http://localhost:5001> | Dashboard, published directly (bypasses the proxy) |
+| <http://localhost:5004> | Hub, published directly (bypasses the proxy) |
 
 `http://localhost:8080/api/live` is an unauthenticated health endpoint - a quick way to
 confirm the Object Service is up.
@@ -113,7 +118,27 @@ docker compose down
 ### Where routing is defined
 
 `default.conf`, mounted into the nginx container at `/etc/nginx/conf.d/default.conf`.
-It proxies `/` to `dashboard:8080` and `/api/` to `object_service:5015`.
+
+| Location | Upstream |
+| --- | --- |
+| `/api/` | `object_service:5015` |
+| `/compute/` | `compute_service:5020` |
+| `/dashboard/` | `dashboard:8080` |
+| `/icons/`, `/workflow_images/` | `dashboard:8080` |
+| `/` | `hub_frontend:8081` |
+| `= /api/tips` | `hub_frontend:8081` |
+
+Three of those need explaining, and the file carries the same notes:
+
+- **The Hub owns `/`** and cannot be moved under a prefix. Its wheel passes no
+  `url_prefix` to waitress, offers no flag to set one, and its templates emit hardcoded
+  absolute links such as `/projects`.
+- **`= /api/tips` is an exact match**, so it takes precedence over the `/api/` prefix.
+  The Hub serves a tips endpoint at that path while `/api/` belongs to the Object
+  Service; the two namespaces genuinely collide and this is the seam.
+- **`/icons/` and `/workflow_images/`** are the Dashboard's two asset directories. It
+  references them by absolute path, so they do not pick up the `/dashboard/` prefix.
+  Everything else it loads is relative and follows the prefix correctly.
 
 > Kubernetes uses a **second, separate** copy of this routing (see
 > [Where routing is defined in Kubernetes](#where-routing-is-defined-in-kubernetes)).
@@ -233,9 +258,10 @@ helm upgrade -i tlc-demo ./helm \
 
 | URL | Serves |
 | --- | --- |
-| <http://localhost:30000> | Dashboard, through the nginx proxy |
 | <http://localhost:30000/api> | Object Service, through the nginx proxy |
 | <http://localhost:30000/compute> | Compute Service, through the nginx proxy |
+| <http://localhost:30000/dashboard/> | Dashboard, through the nginx proxy |
+| <http://localhost:30000> | Hub, through the nginx proxy |
 
 Port 30000 is a NodePort pinned in `docker-desktop.yml` so the URL is predictable and
 matches `global.dnsName`. Note this differs from Part 1's port 8080 - the two can run side
@@ -270,7 +296,7 @@ supply your own overlay that changes:
 | --- | --- | --- |
 | `global.containerRegistry` | empty | your registry, with trailing `/` |
 | `global.imageTag` | `latest` | an immutable tag you pushed |
-| `dashboard.imagePullPolicy`, `object-service.imagePullPolicy`, `compute-service.imagePullPolicy` | `Never` | `Always` (the chart default) |
+| `object-service.imagePullPolicy`, `compute-service.imagePullPolicy`, `dashboard.imagePullPolicy`, `hub-frontend.imagePullPolicy` | `Never` | `Always` (the chart default) |
 | `global.dnsName` | `localhost:30000` | your real hostname; the Dashboard's Object Service URL is built from it |
 | `global.licenseKey`, `global.objectServiceAuthSecret` | plain values in the pod spec | Kubernetes Secrets |
 | `global.pvc_host_path` | a `hostPath` under Docker Desktop | a real PersistentVolumeClaim, replacing the `hostPath` volume |
@@ -282,11 +308,13 @@ Push the images built in Part 1 under the registry name first:
 
 ```bash
 docker tag tlc-enterprise-object-service:latest  <registry>/tlc-enterprise-object-service:<tag>
-docker tag tlc-enterprise-dashboard:latest       <registry>/tlc-enterprise-dashboard:<tag>
 docker tag tlc-enterprise-compute-service:latest <registry>/tlc-enterprise-compute-service:<tag>
+docker tag tlc-enterprise-dashboard:latest       <registry>/tlc-enterprise-dashboard:<tag>
+docker tag tlc-enterprise-hub-frontend:latest    <registry>/tlc-enterprise-hub-frontend:<tag>
 docker push <registry>/tlc-enterprise-object-service:<tag>
-docker push <registry>/tlc-enterprise-dashboard:<tag>
 docker push <registry>/tlc-enterprise-compute-service:<tag>
+docker push <registry>/tlc-enterprise-dashboard:<tag>
+docker push <registry>/tlc-enterprise-hub-frontend:<tag>
 ```
 
 The `hostPath` volume is a demonstration convenience only - it pins the workload to one
@@ -295,12 +323,14 @@ node and is not appropriate for production.
 ## Using the deployment
 
 Browse to <http://localhost:8080>, or <http://localhost:30000> if you deployed with Part
-2. The Dashboard is served from your own deployment; unlike the Default deployment,
-nothing is hosted by 3LC.
+2. That serves the **Hub**, the primary entry point. The **Dashboard** is one level down
+at `/dashboard/`, and the Hub links to it. Everything is served from your own
+deployment; unlike the Default deployment, nothing is hosted by 3LC.
 
-The Object Service sits behind the same entry point under `/api`. It is an HTTP API, not
-a web UI: `/api/` returns **403** because every route except the `/api/live` health check
-requires authentication. That is expected, and not a sign of a broken deployment.
+The Object Service and Compute Service sit behind the same entry point, under `/api` and
+`/compute`. They are HTTP APIs, not web UIs: `/api/` returns **403** because every route
+except the `/api/live` health check requires authentication. That is expected, and not a
+sign of a broken deployment.
 
 > At startup the Object Service prints its own address, for example
 > `http://172.19.0.4:5015`. That is the container's address on the Docker network and is
@@ -311,8 +341,9 @@ requires authentication. That is expected, and not a sign of a broken deployment
 | Path | Used by | Purpose |
 | --- | --- | --- |
 | `object_service.Dockerfile` | both | Object Service image definition |
-| `dashboard.Dockerfile` | both | Dashboard image definition |
 | `compute_service.Dockerfile` | both | Compute Service image definition |
+| `dashboard.Dockerfile` | both | Dashboard image definition |
+| `hub_frontend.Dockerfile` | both | Hub image definition |
 | `docker-compose.yml` | Part 1 - Docker | Service definitions, ports, env, bind mounts |
 | `default.conf` | Part 1 - Docker | nginx routing |
 | `.env.example` | Part 1 - Docker | Template listing the required variables |
