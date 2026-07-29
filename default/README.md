@@ -253,6 +253,29 @@ docker push <registry>/tlc-default-object-service:<tag>
 The `hostPath` volume is a demonstration convenience only - it pins the workload to one
 node and is not appropriate for production.
 
+## Using the deployment
+
+The Object Service is an HTTP API, not a web UI. Browsing to it returns **403**: every
+route except the `/live` health check requires authentication. That is expected, and not
+a sign of a broken deployment.
+
+To work with your data, open the 3LC Dashboard and tell it where this deployment is:
+
+```text
+https://dashboard.3lc.ai?object_service=http://localhost:8080
+```
+
+Use `http://localhost:30000` instead if you deployed with Part 2.
+
+The Dashboard is hosted by 3LC and runs in your browser. The URL above is what points it
+at your Object Service; your table and run data is fetched by the browser directly from
+your own deployment. The Object Service allows cross-origin requests, which is what makes
+this work.
+
+> At startup the Object Service prints a `Dashboard URLs:` banner containing an address
+> like `http://172.19.0.3:5015`. That is the container's address on the Docker network
+> and is **not reachable from your browser**. Use the published URL above instead.
+
 ## Layout
 
 | Path | Used by | Purpose |
