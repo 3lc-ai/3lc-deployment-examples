@@ -17,6 +17,9 @@
 object-service:
   imagePullPolicy: Never # On Docker Desktop, we already built the image, so we don't want to pull.
 
+compute-service:
+  imagePullPolicy: Never # On Docker Desktop, we already built the image, so we don't want to pull.
+
 # Force nginx to use the exact port for its nodeport so that we have a predictable URL (for the dnsName field below) for the Object Service.
 nginx:
   service:

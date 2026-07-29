@@ -16,6 +16,7 @@ This is the **Default** (3LC-hosted account) deployment. Components authenticate
 | Component | Image | Built from | Listens on | Purpose |
 | --- | --- | --- | --- | --- |
 | Object Service | `tlc-default-object-service:latest` | `object_service.Dockerfile` | 5015 | Serves 3LC table and run data |
+| Compute Service | `tlc-default-compute-service:latest` | `compute_service.Dockerfile` | 5020 | Insights, training, import and export |
 | nginx proxy | `nginx:alpine` | (pulled) | 80 | Single entry point; routes to the Object Service |
 
 The Object Service is the `3lc` Python package's built-in service (`3lc service`), so the
@@ -67,15 +68,17 @@ Self-contained. Requires only Docker.
 docker compose up --build
 ```
 
-This builds `tlc-default-object-service:latest` from `object_service.Dockerfile` and starts it
-behind the nginx proxy.
+This builds `tlc-default-object-service:latest` and `tlc-default-compute-service:latest` and starts
+them behind the nginx proxy.
 
 ### Access
 
 | URL | Serves |
 | --- | --- |
 | <http://localhost:8080> | Object Service, through the nginx proxy |
+| <http://localhost:8080/compute> | Compute Service, through the nginx proxy |
 | <http://localhost:5002> | Object Service, published directly (bypasses the proxy) |
+| <http://localhost:5003> | Compute Service, published directly (bypasses the proxy) |
 
 `http://localhost:8080/live` is an unauthenticated health endpoint - a quick way to
 confirm the stack is up.
@@ -197,6 +200,7 @@ helm upgrade -i tlc-demo ./helm \
 | URL | Serves |
 | --- | --- |
 | <http://localhost:30000> | Object Service, through the nginx proxy |
+| <http://localhost:30000/compute> | Compute Service, through the nginx proxy |
 
 Port 30000 is a NodePort pinned in `docker-desktop.yml` so the URL is predictable.
 Note this differs from Part 1's port 8080 - the two can run side by side.
@@ -230,7 +234,7 @@ supply your own overlay that changes:
 | --- | --- | --- |
 | `global.containerRegistry` | empty | your registry, with trailing `/` |
 | `global.imageTag` | `latest` | an immutable tag you pushed |
-| `object-service.imagePullPolicy` | `Never` | `Always` (the chart default) |
+| `object-service.imagePullPolicy`, `compute-service.imagePullPolicy` | `Never` | `Always` (the chart default) |
 | `global.dnsName` | `localhost:30000` | your real hostname, but see the note below |
 | `global.apiKey` | a plain value in the pod spec | a Kubernetes Secret |
 | `global.pvc_host_path` | a `hostPath` under Docker Desktop | a real PersistentVolumeClaim, replacing the `hostPath` volume |
@@ -246,8 +250,10 @@ built from it.
 Push the images built in Part 1 under the registry name first:
 
 ```bash
-docker tag tlc-default-object-service:latest <registry>/tlc-default-object-service:<tag>
+docker tag tlc-default-object-service:latest  <registry>/tlc-default-object-service:<tag>
+docker tag tlc-default-compute-service:latest <registry>/tlc-default-compute-service:<tag>
 docker push <registry>/tlc-default-object-service:<tag>
+docker push <registry>/tlc-default-compute-service:<tag>
 ```
 
 The `hostPath` volume is a demonstration convenience only - it pins the workload to one
@@ -281,6 +287,7 @@ this work.
 | Path | Used by | Purpose |
 | --- | --- | --- |
 | `object_service.Dockerfile` | both | Object Service image definition |
+| `compute_service.Dockerfile` | both | Compute Service image definition |
 | `docker-compose.yml` | Part 1 - Docker | Service definitions, ports, env, bind mounts |
 | `default.conf` | Part 1 - Docker | nginx routing |
 | `.env.example` | Part 1 - Docker | Template listing the required variables |

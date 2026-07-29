@@ -15,6 +15,12 @@ object-service:
   apiKey: "{{ .Values.global.apiKey }}"
   pvc_host_path: "{{ .Values.global.pvc_host_path }}"
 
+compute-service:
+  # tlc-default-compute-service is the name used in docker-compose when building the docker image. Change according to the desired name in container registry.
+  image: "{{ .Values.global.containerRegistry }}tlc-default-compute-service:{{ .Values.global.imageTag }}"
+  apiKey: "{{ .Values.global.apiKey }}"
+  pvc_host_path: "{{ .Values.global.pvc_host_path }}"
+
 nginx:
   service:
     type: NodePort
@@ -26,6 +32,13 @@ nginx:
       listen 0.0.0.0:8080;
       location / {
         proxy_pass http://{{ .Release.Name }}-object-service:5015/;
+        proxy_redirect     off;
+        proxy_set_header   Host $http_host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+      location /compute/ {
+        proxy_pass http://{{ .Release.Name }}-compute-service:5020/;
         proxy_redirect     off;
         proxy_set_header   Host $http_host;
         proxy_set_header   X-Real-IP $remote_addr;

@@ -1,0 +1,61 @@
+#=============================================================================
+# <copyright>
+# Copyright (c) 2026 3LC Inc. All rights reserved.
+#
+# All rights are reserved. Reproduction or transmission in whole or in part, in
+# any form or by any means, electronic, mechanical or otherwise, is prohibited
+# without the prior written permission of the copyright owner.
+# </copyright>
+#=============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+      release: {{ .Release.Name }}
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+        chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+        heritage: {{ .Release.Service }}
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: {{ .Release.Name }}-{{ .Chart.Name }}
+          image: "{{- tpl .Values.image . }}"
+          imagePullPolicy: {{ tpl .Values.imagePullPolicy . }}
+          volumeMounts:
+            - name: my-volume
+              mountPath: /data
+          ports:
+            - name: http-server
+              containerPort: {{ required "required" .Values.servicePort }}
+          livenessProbe:
+            httpGet:
+              # The Compute Service exposes /health, which reports its status and version
+              path: /health
+              port: http-server
+            initialDelaySeconds: 60
+            timeoutSeconds: 20
+            failureThreshold: 6
+          env:
+            # TLC_API_KEY is required for 3LC to run. This should be the value of the 3LC account API key provided from 3LC.
+            # This can also be configured as a Kubernetes secret for more security.
+            # For the sake of the demo, a Kubernetes secret is not used.
+            - name: TLC_API_KEY
+              value: "{{ tpl .Values.apiKey . }}"
+            # TLC_PROJECT_ROOT_URL can be configured to provide the location where 3LC projects are stored.
+            # The Compute Service uses the tlc SDK directly, so it is pointed at the same projects as the Object Service.
+            - name: TLC_PROJECT_ROOT_URL
+              value: "/data/3lc/project"
+      volumes:
+        - name: my-volume
+          hostPath:
+            path: {{ tpl .Values.pvc_host_path . }}
+            type: DirectoryOrCreate

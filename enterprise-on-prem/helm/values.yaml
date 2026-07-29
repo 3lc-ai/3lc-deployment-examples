@@ -22,6 +22,13 @@ object-service:
   objectServiceAuthSecret: "{{ .Values.global.objectServiceAuthSecret }}"
   pvc_host_path: "{{ .Values.global.pvc_host_path }}"
 
+compute-service:
+  # tlc-enterprise-compute-service is the name used in docker-compose when building the docker image. Change according to the desired name in container registry.
+  image: "{{ .Values.global.containerRegistry }}tlc-enterprise-compute-service:{{ .Values.global.imageTag }}"
+  licenseKey: "{{ .Values.global.licenseKey }}"
+  objectServiceAuthSecret: "{{ .Values.global.objectServiceAuthSecret }}"
+  pvc_host_path: "{{ .Values.global.pvc_host_path }}"
+
 nginx:
   service:
     type: NodePort
@@ -42,6 +49,13 @@ nginx:
       
       location /api/ {
         proxy_pass http://{{ .Release.Name }}-object-service:5015/;
+        proxy_redirect     off;
+        proxy_set_header   Host $http_host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+      location /compute/ {
+        proxy_pass http://{{ .Release.Name }}-compute-service:5020/;
         proxy_redirect     off;
         proxy_set_header   Host $http_host;
         proxy_set_header   X-Real-IP $remote_addr;

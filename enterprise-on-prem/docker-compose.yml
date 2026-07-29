@@ -21,6 +21,7 @@ services:
     restart: always
     depends_on:
       - object_service
+      - compute_service
       - dashboard
 
   object_service:
@@ -58,6 +59,23 @@ services:
       - 5001:8080
     expose:
       - "5001"
+
+  compute_service:
+    image: "tlc-enterprise-compute-service:latest"
+    build:
+      dockerfile: compute_service.Dockerfile
+      args:
+        - TLC_COMPUTE_VERSION=0.2.1
+    environment:
+      - TLC_LICENSE=${TLC_LICENSE}
+      - TLC_OBJECT_SERVICE_AUTH_SECRET=${TLC_OBJECT_SERVICE_AUTH_SECRET}
+      - TLC_PROJECT_ROOT_URL=/data/3lc/project
+    volumes:
+      - ./mounts/3lc:/data/3lc
+    ports:
+      - 5003:5020
+    expose:
+      - "5020"
 
   # Using docker-host image to access host network from inside of portal container
   dockerhost:
