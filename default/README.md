@@ -77,8 +77,8 @@ them behind the nginx proxy.
 | --- | --- |
 | <http://localhost:8080> | Object Service, through the nginx proxy |
 | <http://localhost:8080/compute> | Compute Service, through the nginx proxy |
-| <http://localhost:5002> | Object Service, published directly (bypasses the proxy) |
-| <http://localhost:5003> | Compute Service, published directly (bypasses the proxy) |
+| <http://localhost:5001> | Object Service, published directly (bypasses the proxy) |
+| <http://localhost:5002> | Compute Service, published directly (bypasses the proxy) |
 
 `http://localhost:8080/live` is an unauthenticated health endpoint - a quick way to
 confirm the stack is up.
