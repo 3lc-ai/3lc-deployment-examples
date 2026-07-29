@@ -25,7 +25,7 @@ compute-service:
 dashboard:
   # tlc-enterprise-dashboard is the name used in docker-compose when building the docker image. Change according to the desired name in container registry.
   image: "{{ .Values.global.containerRegistry }}tlc-enterprise-dashboard:{{ .Values.global.imageTag }}"
-  objectServiceUrl: "http://{{ .Values.global.dnsName }}/api"
+  objectServiceUrl: "http://{{ .Values.global.dnsName }}/object-service"
   objectServiceAuthSecret: "{{ .Values.global.objectServiceAuthSecret }}"
 
 hub-frontend:
@@ -33,7 +33,7 @@ hub-frontend:
   image: "{{ .Values.global.containerRegistry }}tlc-enterprise-hub-frontend:{{ .Values.global.imageTag }}"
   objectServiceAuthSecret: "{{ .Values.global.objectServiceAuthSecret }}"
   # Browser-facing addresses, so built from dnsName like the Dashboard's objectServiceUrl.
-  objectServiceUrl: "http://{{ .Values.global.dnsName }}/api"
+  objectServiceUrl: "http://{{ .Values.global.dnsName }}/object-service"
   computeServiceUrl: "http://{{ .Values.global.dnsName }}/compute"
   dashboardUrl: "http://{{ .Values.global.dnsName }}/dashboard"
 
@@ -42,13 +42,13 @@ nginx:
     type: NodePort
 
   # Everything after / is passed to the Dashboard by default, e.g. /index.html -> dashboard:8080/index.html.
-  # For the Object Service, everything after /api is passed, e.g. /api/live -> object-service:5015/live.
+  # For the Object Service, everything after /object-service is passed, e.g. /object-service/live -> object-service:5015/live.
   # Thus, the trailing slash in both the location and proxy_pass is important.
   serverBlock: |-
     server {
       listen 0.0.0.0:8080;
-      # Pass everything after /api as is to the root of the Object Service.
-      location /api/ {
+      # Pass everything after /object-service as is to the root of the Object Service.
+      location /object-service/ {
           proxy_pass http://{{ .Release.Name }}-object-service:5015/;
           proxy_redirect     off;
           proxy_set_header   Host $http_host;
@@ -102,16 +102,6 @@ nginx:
           proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
       }
 
-      # The Hub serves its own /api/tips, but /api/ above is the Object Service. An exact
-      # match takes precedence over the prefix match, so this one route stays with the Hub.
-      # Revisit if the Hub grows more /api routes; the namespaces genuinely collide.
-      location = /api/tips {
-          proxy_pass http://{{ .Release.Name }}-hub-frontend:8081/api/tips;
-          proxy_redirect     off;
-          proxy_set_header   Host $http_host;
-          proxy_set_header   X-Real-IP $remote_addr;
-          proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
-      }
     }
 
 

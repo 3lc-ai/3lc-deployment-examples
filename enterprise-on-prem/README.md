@@ -92,20 +92,20 @@ This builds `tlc-enterprise-object-service:latest`,
 
 | URL | Serves |
 | --- | --- |
-| <http://localhost:8080/api> | Object Service, through the nginx proxy |
+| <http://localhost:8080/object-service> | Object Service, through the nginx proxy |
 | <http://localhost:8080/compute> | Compute Service, through the nginx proxy |
 | <http://localhost:8080/dashboard/> | Dashboard, through the nginx proxy |
 | <http://localhost:8080> | Hub, through the nginx proxy |
-| <http://localhost:5002> | Object Service, published directly (bypasses the proxy) |
-| <http://localhost:5003> | Compute Service, published directly (bypasses the proxy) |
-| <http://localhost:5001> | Dashboard, published directly (bypasses the proxy) |
+| <http://localhost:5001> | Object Service, published directly (bypasses the proxy) |
+| <http://localhost:5002> | Compute Service, published directly (bypasses the proxy) |
+| <http://localhost:5003> | Dashboard, published directly (bypasses the proxy) |
 | <http://localhost:5004> | Hub, published directly (bypasses the proxy) |
 
-`http://localhost:8080/api/live` is an unauthenticated health endpoint - a quick way to
+`http://localhost:8080/object-service/live` is an unauthenticated health endpoint - a quick way to
 confirm the Object Service is up.
 
 Note the Dashboard is told where the Object Service is via a command override in
-`docker-compose.yml`: `--object-service http://localhost:8080/api`. That URL is resolved
+`docker-compose.yml`: `--object-service http://localhost:8080/object-service`. That URL is resolved
 by the **browser**, not by the Dashboard container, which is why it is a `localhost`
 address rather than a container name.
 
@@ -121,21 +121,17 @@ docker compose down
 
 | Location | Upstream |
 | --- | --- |
-| `/api/` | `object_service:5015` |
+| `/object-service/` | `object_service:5015` |
 | `/compute/` | `compute_service:5020` |
 | `/dashboard/` | `dashboard:8080` |
 | `/icons/`, `/workflow_images/` | `dashboard:8080` |
 | `/` | `hub_frontend:8081` |
-| `= /api/tips` | `hub_frontend:8081` |
 
-Three of those need explaining, and the file carries the same notes:
+Two of those need explaining, and the file carries the same notes:
 
 - **The Hub owns `/`** and cannot be moved under a prefix. Its wheel passes no
   `url_prefix` to waitress, offers no flag to set one, and its templates emit hardcoded
   absolute links such as `/projects`.
-- **`= /api/tips` is an exact match**, so it takes precedence over the `/api/` prefix.
-  The Hub serves a tips endpoint at that path while `/api/` belongs to the Object
-  Service; the two namespaces genuinely collide and this is the seam.
 - **`/icons/` and `/workflow_images/`** are the Dashboard's two asset directories. It
   references them by absolute path, so they do not pick up the `/dashboard/` prefix.
   Everything else it loads is relative and follows the prefix correctly.
@@ -216,7 +212,7 @@ Edit `docker-desktop.yml`:
 - `global.objectServiceAuthSecret` is the shared Dashboard-to-Object-Service secret. Also
   intentionally blank.
 - `global.dnsName` is how a **browser** reaches the deployment. `helm/values.yaml` builds
-  the Dashboard's Object Service URL as `http://{dnsName}/api`, so this must be an address
+  the Dashboard's Object Service URL as `http://{dnsName}/object-service`, so this must be an address
   that resolves from the browser: `localhost:30000` locally, your real hostname otherwise.
 - `global.pvc_host_path` is the absolute path to this folder's `mounts` directory, in
   Docker Desktop's host-mount form. A Windows path like
@@ -258,7 +254,7 @@ helm upgrade -i tlc-demo ./helm \
 
 | URL | Serves |
 | --- | --- |
-| <http://localhost:30000/api> | Object Service, through the nginx proxy |
+| <http://localhost:30000/object-service> | Object Service, through the nginx proxy |
 | <http://localhost:30000/compute> | Compute Service, through the nginx proxy |
 | <http://localhost:30000/dashboard/> | Dashboard, through the nginx proxy |
 | <http://localhost:30000> | Hub, through the nginx proxy |
@@ -271,7 +267,7 @@ by side.
 
 ```bash
 kubectl --context docker-desktop get pods -n tlc-demo
-curl http://localhost:30000/api/live
+curl http://localhost:30000/object-service/live
 ```
 
 ### Uninstall
@@ -327,9 +323,9 @@ Browse to <http://localhost:8080>, or <http://localhost:30000> if you deployed w
 at `/dashboard/`, and the Hub links to it. Everything is served from your own
 deployment; unlike the Default deployment, nothing is hosted by 3LC.
 
-The Object Service and Compute Service sit behind the same entry point, under `/api` and
-`/compute`. They are HTTP APIs, not web UIs: `/api/` returns **403** because every route
-except the `/api/live` health check requires authentication. That is expected, and not a
+The Object Service and Compute Service sit behind the same entry point, under `/object-service`
+and `/compute`. They are HTTP APIs, not web UIs: `/object-service/` returns **403** because every
+route except the `/object-service/live` health check requires authentication. That is expected, and not a
 sign of a broken deployment.
 
 > At startup the Object Service prints its own address, for example
