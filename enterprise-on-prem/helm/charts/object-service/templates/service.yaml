@@ -16,8 +16,8 @@ spec:
   type: ClusterIP
   ports:
   - name: http-server
-    port: {{ required "required" .Values.servicePort }}
-    targetPort: {{ required "required" .Values.servicePort }}
+    port: {{ required "object-service: servicePort is required" .Values.servicePort }}
+    targetPort: {{ required "object-service: servicePort is required" .Values.servicePort }}
   selector:
     app: {{ .Chart.Name }}
     release: {{ .Release.Name }}
