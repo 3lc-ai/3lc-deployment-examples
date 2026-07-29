@@ -3,6 +3,7 @@
         "bitnami",
         "cryptlex",
         "dockerhost",
+        "kubeadm",
         "hmac",
         "nodeport",
         "pypi",
