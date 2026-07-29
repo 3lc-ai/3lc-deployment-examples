@@ -34,7 +34,7 @@ spec:
           imagePullPolicy: {{ tpl .Values.imagePullPolicy . }}
           ports:
             - name: http-server
-              containerPort: {{ required "required" .Values.servicePort }}
+              containerPort: {{ required "dashboard: servicePort is required" .Values.servicePort }}
           livenessProbe:
             httpGet:
               # Dashboard is accessed at root address so it can be used for health check

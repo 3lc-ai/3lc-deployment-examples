@@ -32,7 +32,7 @@ spec:
           imagePullPolicy: {{ tpl .Values.imagePullPolicy . }}
           ports:
             - name: http-server
-              containerPort: {{ required "required" .Values.servicePort }}
+              containerPort: {{ required "hub-frontend: servicePort is required" .Values.servicePort }}
           livenessProbe:
             httpGet:
               # The Hub serves its landing page at the root
