@@ -49,15 +49,4 @@ services:
     ports:
       - 5002:5020
 
-  # Using docker-host image to access host network from inside of portal container
-  dockerhost:
-    image: qoomon/docker-host
-    cap_add:
-      - NET_ADMIN
-      - NET_RAW
-    restart: on-failure
-    deploy:
-      resources:
-        limits:
-          memory: 16M
 
