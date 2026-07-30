@@ -177,18 +177,17 @@ unreachable on `localhost` because the node container publishes no ports.
 
 ### Configure
 
-Kubernetes does **not** read `.env`, so your API key has to reach Helm some other way.
+Kubernetes does **not** read `.env`, so the API key has to reach Helm some other way.
+`deploy.sh` handles that for you: it reads `TLC_API_KEY` from `.env`, the same file Part 1
+uses, and passes it to Helm.
 
-`global.apiKey` in `docker-desktop.yml` is intentionally blank. **Prefer passing it on the
-command line** rather than filling it in, because `docker-desktop.yml` is tracked by git
-and a key typed into it is one `git commit -a` away from being published:
+`global.apiKey` in `docker-desktop.yml` is intentionally blank and should stay that way.
+The file is tracked by git, so a key typed into it is one `git commit -a` away from being
+published. If you run your own Helm command instead of `deploy.sh`, pass it the same way:
 
 ```bash
 --set-string global.apiKey=$TLC_API_KEY
 ```
-
-The [Deploy](#deploy) command below shows this in place. If you do fill the value into
-`docker-desktop.yml` instead, do not commit the change.
 
 > Leaving it blank is caught by the chart, which stops before deploying anything:
 > `global.apiKey is required`. Nothing reaches the cluster, so there is no
@@ -215,7 +214,8 @@ Then edit `docker-desktop.yml` for the rest:
 ```
 
 `deploy.sh` prints the context and cluster it resolved before it does anything, and fails
-with the list of available contexts if the one you named does not exist.
+with the list of available contexts if the one you named does not exist. It reads
+`TLC_API_KEY` from `.env`, the same file Part 1 uses, and passes it to Helm.
 
 The equivalent command:
 
@@ -230,8 +230,8 @@ helm upgrade -i tlc-demo ./helm \
   --set-string global.apiKey=$TLC_API_KEY
 ```
 
-`deploy.sh` passes only `-f docker-desktop.yml`, so it works as written when the key is
-filled into that file. Use the explicit command above to keep the key out of it.
+This is what `deploy.sh` runs, minus the context checks. Use it directly if the key comes
+from somewhere other than `.env`.
 
 ### Access through the NodePort
 
@@ -503,7 +503,7 @@ deployment modes is expected, not a fault.
 | `.env` | Part 1 - Docker | Your filled-in copy of `.env.example` (not committed) |
 | `helm/` | Part 2 - Kubernetes | Umbrella chart: `values.yaml` plus the per-component subcharts in `helm/charts` (object-service, nginx, and on Enterprise the dashboard). No external chart dependencies. |
 | `docker-desktop.yml` | Part 2 - Kubernetes | Values overlay for the local Docker Desktop cluster |
-| `deploy.sh` | Part 2 - Kubernetes | The three Helm commands above, scripted |
+| `deploy.sh` | Part 2 - Kubernetes | The Helm command above, with context checks and the secrets read from `.env` |
 | `mounts/` | both | Host-side project storage (not committed) |
 | `generate-certs.sh` | HTTPS | Creates the local CA and certificate in `certs/` |
 | `tls-per-host.conf` | HTTPS, Part 1 | nginx config, one hostname per component |

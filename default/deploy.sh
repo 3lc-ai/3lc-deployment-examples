@@ -28,9 +28,25 @@ echo "                  cluster : $(kubectl config view -o jsonpath="{.contexts[
 echo "  (your current context is: $(kubectl config current-context))"
 echo
 
+# The API key lives in .env, which is where Part 1 already keeps it. Kubernetes
+# does not read that file, so pass it to Helm explicitly rather than having it
+# typed into docker-desktop.yml, which is tracked by git.
+#
+# Sourcing is conditional so an already-exported variable, or a secret injected
+# by CI, works just as well.
+ENV_FILE="$(cd "$(dirname "$0")" && pwd)/.env"
+if [ -f "${ENV_FILE}" ]; then
+  set -a
+  . "${ENV_FILE}"
+  set +a
+fi
+
+: "${TLC_API_KEY:?is not set. Copy .env.example to .env and fill it in, or export it before running this script.}"
+
 # Deploy the chart. All subcharts are local, under helm/charts, so there is
 # no chart repository to add and no dependencies to fetch.
 helm upgrade -i tlc-demo ./helm \
   --kube-context "${KUBE_CONTEXT}" \
   --namespace tlc-demo --create-namespace \
-  -f docker-desktop.yml
+  -f docker-desktop.yml \
+  --set-string global.apiKey="${TLC_API_KEY}"

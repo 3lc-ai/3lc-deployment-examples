@@ -224,22 +224,21 @@ unreachable on `localhost` because the node container publishes no ports.
 ### Configure
 
 Kubernetes does **not** read `.env`, so both runtime secrets have to reach Helm some other
-way.
+way. `deploy.sh` handles that for you: it reads `TLC_LICENSE` and
+`TLC_OBJECT_SERVICE_AUTH_SECRET` from `.env`, the same file Part 1 uses, and passes them to
+Helm.
 
 `global.licenseKey` (your 3LC license key) and `global.objectServiceAuthSecret` (the shared
 HMAC secret described under [How the components
 authenticate](#how-the-components-authenticate)) are intentionally blank in
-`docker-desktop.yml`. **Prefer passing them on the command line** rather than filling them
-in, because `docker-desktop.yml` is tracked by git and a secret typed into it is one
-`git commit -a` away from being published:
+`docker-desktop.yml` and should stay that way. The file is tracked by git, so a secret
+typed into it is one `git commit -a` away from being published. If you run your own Helm
+command instead of `deploy.sh`, pass them the same way:
 
 ```bash
 --set-string global.licenseKey=$TLC_LICENSE \
 --set-string global.objectServiceAuthSecret=$TLC_OBJECT_SERVICE_AUTH_SECRET
 ```
-
-The [Deploy](#deploy) command below shows this in place. If you do fill the values into
-`docker-desktop.yml` instead, do not commit the change.
 
 > Leaving either blank is caught by the chart, which stops before deploying anything:
 > `global.licenseKey is required` or `global.objectServiceAuthSecret is required`.
@@ -272,7 +271,9 @@ readable. In a real deployment, use Kubernetes Secrets.
 ```
 
 `deploy.sh` prints the context and cluster it resolved before it does anything, and fails
-with the list of available contexts if the one you named does not exist.
+with the list of available contexts if the one you named does not exist. It reads
+`TLC_LICENSE` and `TLC_OBJECT_SERVICE_AUTH_SECRET` from `.env`, the same file Part 1 uses,
+and passes them to Helm.
 
 The equivalent command:
 
@@ -288,8 +289,8 @@ helm upgrade -i tlc-demo ./helm \
   --set-string global.objectServiceAuthSecret=$TLC_OBJECT_SERVICE_AUTH_SECRET
 ```
 
-`deploy.sh` passes only `-f docker-desktop.yml`, so it works as written when the secrets
-are filled into that file. Use the explicit command above to keep them out of it.
+This is what `deploy.sh` runs, minus the context checks. Use it directly if the secrets
+come from somewhere other than `.env`.
 
 ### Access through the NodePort
 
@@ -570,7 +571,7 @@ deployment modes is expected, not a fault.
 | `.env` | Part 1 - Docker | Your filled-in copy of `.env.example` (not committed) |
 | `helm/` | Part 2 - Kubernetes | Umbrella chart: `values.yaml` plus the per-component subcharts in `helm/charts` (object-service, nginx, and on Enterprise the dashboard). No external chart dependencies. |
 | `docker-desktop.yml` | Part 2 - Kubernetes | Values overlay for the local Docker Desktop cluster |
-| `deploy.sh` | Part 2 - Kubernetes | The three Helm commands above, scripted |
+| `deploy.sh` | Part 2 - Kubernetes | The Helm command above, with context checks and the secrets read from `.env` |
 | `mounts/` | both | Host-side project storage (not committed) |
 | `generate-certs.sh` | HTTPS | Creates the local CA and certificate in `certs/` |
 | `tls-per-host.conf` | HTTPS, Part 1 | nginx config, one hostname per component |
