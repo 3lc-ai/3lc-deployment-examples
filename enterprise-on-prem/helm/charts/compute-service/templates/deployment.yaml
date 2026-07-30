@@ -48,11 +48,11 @@ spec:
             # TLC_LICENSE is required for 3LC to run when deployed in enterprise settings. This should be the value of the license key provided from 3LC.
             # This can also be configured as a Kubernetes secret for more security. For the sake of the demo, a Kubernetes secret is not used.
             - name: TLC_LICENSE
-              value: "{{ tpl .Values.licenseKey . }}"
+              value: {{ tpl .Values.licenseKey . | required "global.licenseKey is required. Pass it with --set-string global.licenseKey=$TLC_LICENSE, or set it in your values file." | quote }}
             # TLC_OBJECT_SERVICE_AUTH_SECRET is required alongside the license key in enterprise settings.
             # This should be the same strong, random string used by the other services.
             - name: TLC_OBJECT_SERVICE_AUTH_SECRET
-              value: "{{ tpl .Values.objectServiceAuthSecret . }}"
+              value: {{ tpl .Values.objectServiceAuthSecret . | required "global.objectServiceAuthSecret is required. Pass it with --set-string global.objectServiceAuthSecret=$TLC_OBJECT_SERVICE_AUTH_SECRET, or set it in your values file." | quote }}
             # TLC_PROJECT_ROOT_URL can be configured to provide the location where 3LC projects are stored.
             # The Compute Service uses the tlc SDK directly, so it is pointed at the same projects as the Object Service.
             - name: TLC_PROJECT_ROOT_URL

@@ -49,7 +49,7 @@ spec:
             # This can also be configured as a Kubernetes secret for more security.
             # For the sake of the demo, a Kubernetes secret is not used.
             - name: TLC_API_KEY
-              value: "{{ tpl .Values.apiKey . }}"
+              value: {{ tpl .Values.apiKey . | required "global.apiKey is required. Pass it with --set-string global.apiKey=$TLC_API_KEY, or set it in your values file." | quote }}
             # TLC_PROJECT_ROOT_URL can be configured to provide the location where 3LC projects are stored.
             # For this demo, the volume is mounted as /data from the host file system (./mounts/3lc) so that we can see the projects being saved to the current folder.
             - name: TLC_PROJECT_ROOT_URL

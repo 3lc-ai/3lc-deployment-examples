@@ -49,6 +49,6 @@ spec:
             # This can also be configured as a Kubernetes secret for more security. For the sake of the demo, a Kubernetes secret is not used.
             # See also: https://docs.3lc.ai/3lc/latest/getting-started/deployment-options/enterprise-on-prem/secure-communication.html
             - name: TLC_OBJECT_SERVICE_AUTH_SECRET
-              value: "{{ tpl .Values.objectServiceAuthSecret . }}"
+              value: {{ tpl .Values.objectServiceAuthSecret . | required "global.objectServiceAuthSecret is required. Pass it with --set-string global.objectServiceAuthSecret=$TLC_OBJECT_SERVICE_AUTH_SECRET, or set it in your values file." | quote }}
         
           
