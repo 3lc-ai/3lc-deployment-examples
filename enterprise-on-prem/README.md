@@ -7,6 +7,9 @@ on its own if Docker Compose is all you need. [Part 2](#part-2-kubernetes-on-doc
 does not replace Part 1 - it *builds on* it, deploying the container images that Part 1
 produces. See [How the two parts relate](#how-the-two-parts-relate).
 
+Both parts serve plain HTTP. [Serving over HTTPS](#serving-over-https) is an optional
+overlay that applies to either one, in two different topologies.
+
 This is the **Enterprise On-Prem** deployment: fully self-hosted, licensed, with no
 dependency on a 3LC-hosted account. For the 3LC-hosted variant, see
 [`../default`](../default/README.md).
@@ -43,8 +46,8 @@ Both parts need the same settings, but each takes them from a different place:
 | Setting | Docker Compose reads it from | Kubernetes reads it from |
 | --- | --- | --- |
 | PyPI access and secret keys | `.env`, passed as build args | not read; images are built by Part 1 |
-| License key | `TLC_LICENSE` in `.env` | `global.licenseKey` in `docker-desktop.yml` |
-| Object Service auth secret | `TLC_OBJECT_SERVICE_AUTH_SECRET` in `.env` | `global.objectServiceAuthSecret` in `docker-desktop.yml` |
+| License key | `TLC_LICENSE` in `.env` | `global.licenseKey`, passed to Helm - see [Configure](#configure) |
+| Object Service auth secret | `TLC_OBJECT_SERVICE_AUTH_SECRET` in `.env` | `global.objectServiceAuthSecret`, passed to Helm - see [Configure](#configure) |
 | Project storage location | the `./mounts/3lc` bind mount in `docker-compose.yml` | `global.pvc_host_path` in `docker-desktop.yml` |
 
 Before either part, create the project folder:
@@ -101,13 +104,38 @@ This builds `tlc-enterprise-object-service:latest`,
 | <http://localhost:5003> | Dashboard, published directly (bypasses the proxy) |
 | <http://localhost:5004> | Hub, published directly (bypasses the proxy) |
 
-`http://localhost:8080/object-service/live` is an unauthenticated health endpoint - a quick way to
-confirm the Object Service is up.
-
 Note the Dashboard is told where the Object Service is via a command override in
 `docker-compose.yml`: `--object-service http://localhost:8080/object-service`. That URL is resolved
 by the **browser**, not by the Dashboard container, which is why it is a `localhost`
 address rather than a container name.
+
+### Verify
+
+Both APIs expose an unauthenticated health endpoint, so the back end can be checked
+without credentials:
+
+```bash
+curl http://localhost:8080/object-service/live  # Object Service, through the proxy
+curl http://localhost:8080/compute/health       # Compute Service, through the proxy
+```
+
+The Compute Service becomes ready a few seconds after the Object Service, so a **502** on
+`/compute/health` right after `up` usually just means it is not listening yet. Retry before
+investigating.
+
+Then check the two web UIs in a browser, which is where the routing is really exercised:
+
+| Check | What it confirms |
+| --- | --- |
+| <http://localhost:8080> shows the Hub, and its Projects and Plugins pages work | The Hub owns `/`, and its hardcoded absolute links resolve |
+| <http://localhost:8080/dashboard/> shows the Dashboard, with its assets loaded | The Dashboard is reachable under its path prefix and its assets resolve |
+| The Hub's link to the Dashboard opens it | The Hub was given a reachable `TLC_DASHBOARD_URL` |
+
+Anything under `/object-service/` other than `/live` returns **403** without
+authentication, which is correct - see [Using the deployment](#using-the-deployment).
+
+If one component misbehaves, `docker compose logs <service>` names are `object_service`,
+`compute_service`, `dashboard`, `hub_frontend` and `proxy`.
 
 ### Stop
 
@@ -124,17 +152,7 @@ docker compose down
 | `/object-service/` | `object_service:5015` |
 | `/compute/` | `compute_service:5020` |
 | `/dashboard/` | `dashboard:8080` |
-| `/icons/`, `/workflow_images/` | `dashboard:8080` |
 | `/` | `hub_frontend:8081` |
-
-Two of those need explaining, and the file carries the same notes:
-
-- **The Hub owns `/`** and cannot be moved under a prefix. Its wheel passes no
-  `url_prefix` to waitress, offers no flag to set one, and its templates emit hardcoded
-  absolute links such as `/projects`.
-- **`/icons/` and `/workflow_images/`** are the Dashboard's two asset directories. It
-  references them by absolute path, so they do not pick up the `/dashboard/` prefix.
-  Everything else it loads is relative and follows the prefix correctly.
 
 > Kubernetes uses a **second, separate** copy of this routing (see
 > [Where routing is defined in Kubernetes](#where-routing-is-defined-in-kubernetes)).
@@ -205,12 +223,30 @@ unreachable on `localhost` because the node container publishes no ports.
 
 ### Configure
 
-Edit `docker-desktop.yml`:
+Kubernetes does **not** read `.env`, so both runtime secrets have to reach Helm some other
+way.
 
-- `global.licenseKey` is your 3LC license key. Intentionally blank; the deploy fails
-  without it. Kubernetes does **not** read `.env`.
-- `global.objectServiceAuthSecret` is the shared Dashboard-to-Object-Service secret. Also
-  intentionally blank.
+`global.licenseKey` (your 3LC license key) and `global.objectServiceAuthSecret` (the shared
+HMAC secret described under [How the components
+authenticate](#how-the-components-authenticate)) are intentionally blank in
+`docker-desktop.yml`. **Prefer passing them on the command line** rather than filling them
+in, because `docker-desktop.yml` is tracked by git and a secret typed into it is one
+`git commit -a` away from being published:
+
+```bash
+--set-string global.licenseKey=$TLC_LICENSE \
+--set-string global.objectServiceAuthSecret=$TLC_OBJECT_SERVICE_AUTH_SECRET
+```
+
+The [Deploy](#deploy) command below shows this in place. If you do fill the values into
+`docker-desktop.yml` instead, do not commit the change.
+
+> Leaving either blank is caught by the chart, which stops before deploying anything:
+> `global.licenseKey is required` or `global.objectServiceAuthSecret is required`.
+> Nothing reaches the cluster, so there is no half-deployed release to clean up.
+
+Then edit `docker-desktop.yml` for the rest:
+
 - `global.dnsName` is how a **browser** reaches the deployment. `helm/values.yaml` builds
   the Dashboard's Object Service URL as `http://{dnsName}/object-service`, so this must be an address
   that resolves from the browser: `localhost:30000` locally, your real hostname otherwise.
@@ -247,8 +283,13 @@ The equivalent command:
 helm upgrade -i tlc-demo ./helm \
   --kube-context docker-desktop \
   --namespace tlc-demo --create-namespace \
-  -f docker-desktop.yml
+  -f docker-desktop.yml \
+  --set-string global.licenseKey=$TLC_LICENSE \
+  --set-string global.objectServiceAuthSecret=$TLC_OBJECT_SERVICE_AUTH_SECRET
 ```
+
+`deploy.sh` passes only `-f docker-desktop.yml`, so it works as written when the secrets
+are filled into that file. Use the explicit command above to keep them out of it.
 
 ### Access through the NodePort
 
@@ -263,12 +304,31 @@ Port 30000 is a NodePort pinned in `docker-desktop.yml` so the URL is predictabl
 matches `global.dnsName`. Note this differs from Part 1's port 8080 - the two can run side
 by side.
 
-### Verify
+### Verify in the cluster
+
+Wait for all five pods to reach `Running` **and** `1/1` ready - a pod can be `Running` for
+a few seconds before its readiness probe passes:
 
 ```bash
 kubectl --context docker-desktop get pods -n tlc-demo
-curl http://localhost:30000/object-service/live
 ```
+
+Then run the same checks as Part 1, on the NodePort:
+
+```bash
+curl http://localhost:30000/object-service/live  # Object Service, through the proxy
+curl http://localhost:30000/compute/health       # Compute Service, through the proxy
+```
+
+and the same browser checks - Hub at <http://localhost:30000>, Dashboard at
+<http://localhost:30000/dashboard/>, and the Hub's link to the Dashboard. This is worth
+doing on both parts, because the routing is defined twice and the two copies can drift.
+
+If a pod never becomes ready, `kubectl --context docker-desktop logs -n tlc-demo <pod>`
+is the next step.
+
+Because Part 1 uses port 8080 and Part 2 uses 30000, both can run at once and be compared
+side by side.
 
 ### Uninstall
 
@@ -316,6 +376,25 @@ docker push <registry>/tlc-enterprise-hub-frontend:<tag>
 The `hostPath` volume is a demonstration convenience only - it pins the workload to one
 node and is not appropriate for production.
 
+## Using the deployment
+
+Browse to <http://localhost:8080>, or <http://localhost:30000> if you deployed with Part
+2. That serves the **Hub**, the primary entry point. The **Dashboard** is one level down
+at `/dashboard/`, and the Hub links to it. Everything is served from your own
+deployment; unlike the Default deployment, nothing is hosted by 3LC.
+
+The Object Service and Compute Service sit behind the same entry point, under `/object-service`
+and `/compute`. They are HTTP APIs, not web UIs: `/object-service/` returns **403** because every
+route except the `/object-service/live` health check requires authentication. That is expected, and not a
+sign of a broken deployment.
+
+With HTTPS enabled these addresses change; see
+[Serving over HTTPS](#serving-over-https) for the ones each topology uses.
+
+> At startup the Object Service prints its own address, for example
+> `http://172.19.0.4:5015`. That is the container's address on the Docker network and is
+> **not reachable from your browser**. Use the published URLs above instead.
+
 ## Serving over HTTPS
 
 Both parts above serve plain HTTP, which works on a single machine because browsers
@@ -328,6 +407,12 @@ each service stays plain HTTP on the internal network. The browser sees https th
 This is the same arrangement an Ingress, a load balancer, or a corporate reverse proxy
 uses, so swapping nginx for one of those only changes who holds the certificate and nothing
 else.
+
+Everything below is an overlay on Part 1 or Part 2. The base files are untouched, so plain
+HTTP keeps working exactly as documented above.
+
+> Unlike the HTTP setups, **the Compose and Kubernetes HTTPS deployments cannot run at the
+> same time**: both bind port 443 on the host. Take one down before bringing the other up.
 
 ### Generate the certificates
 
@@ -351,10 +436,27 @@ warnings therefore means trusting the CA generated here.
 | Linux | copy `certs/ca.crt` into `/usr/local/share/ca-certificates/` and run `sudo update-ca-certificates` |
 
 Firefox keeps its own trust store, so import there separately if you use it. To undo on
-Windows: `certutil -user -delstore Root "3LC deployment examples local CA"`.
+Windows: `certutil -user -delstore Root "3LC Enterprise On-Prem deployment example local CA"`.
 
 In a real deployment you skip all of this and drop in a certificate from your own PKI, or
 one issued by cert-manager in the cluster.
+
+### Checking from the command line
+
+Two things trip up `curl` here, and both apply to every Verify step below:
+
+- **`*.localhost` does not resolve outside a browser.** Chrome, Edge and Firefox map these
+  names to 127.0.0.1 themselves; the operating system resolver does not, and neither does
+  `curl`. Pass `--resolve <host>:443:127.0.0.1`.
+- **On Windows, `curl` uses Schannel**, the operating system TLS stack, which refuses to
+  proceed when it cannot check certificate revocation. A private CA publishes no revocation
+  list, so add `--ssl-revoke-best-effort` on Windows only. Without it you get
+  `CRYPT_E_NO_REVOCATION_CHECK` or `the revocation status is unknown`. The certificate is
+  fine; only that check fails.
+
+If you would rather not trust the CA at all, add `--cacert certs/ca.crt` and the commands
+work without the import. On Windows that does not replace `--ssl-revoke-best-effort` -
+revocation is checked either way, so you need both.
 
 ### One hostname per component
 
@@ -392,6 +494,28 @@ else in the deployment changes.
 Nothing is served under a path prefix here, so each component's own absolute paths work
 untouched, and one certificate covers every name through its subject alternative names.
 
+#### Verify the per-host setup
+
+```bash
+curl --resolve object-service.localhost:443:127.0.0.1 https://object-service.localhost/live
+curl --resolve compute.localhost:443:127.0.0.1        https://compute.localhost/health
+```
+
+Add `--ssl-revoke-best-effort` on Windows, as described under
+[Checking from the command line](#checking-from-the-command-line).
+
+Then, in a browser:
+
+| Check | What it confirms |
+| --- | --- |
+| <https://hub.localhost> shows the Hub, with a padlock and no warning | The CA import took effect. A warning means it did not - restart the browser, since trust decisions are cached for the life of the process |
+| <https://dashboard.localhost> shows the Dashboard | This is the payoff of the per-host layout: the Dashboard owns its origin, so its absolute asset paths need no special routing |
+| The Hub's Projects and Plugins pages load | The Hub's requests to the Object Service and Compute Service are **cross-origin** here. The developer tools Network tab should show them going to `object-service.localhost` and `compute.localhost` over https, succeeding on CORS headers, with no mixed-content warnings |
+| The Hub's link to the Dashboard opens `dashboard.localhost` | Each component was told the others' public addresses |
+
+The cross-origin traffic is the thing worth looking at: in the single-hostname variant
+below these are all same-origin requests, so nothing exercises CORS.
+
 ### If you would rather use a single hostname
 
 There is also a variant that puts everything behind one name, `3lc.localhost`, routed by
@@ -410,33 +534,27 @@ docker compose -f docker-compose.yml -f docker-compose.tls-gateway.yml up --buil
 # or, for Kubernetes, swap tls-per-host-values.yaml for tls-gateway-values.yaml
 ```
 
-### Verifying from the command line
-
-Browsers resolve `*.localhost` by themselves; curl does not, and needs to be told:
+#### Verify the single-hostname setup
 
 ```bash
-curl --resolve object-service.localhost:443:127.0.0.1 https://object-service.localhost/live
+curl --resolve 3lc.localhost:443:127.0.0.1 https://3lc.localhost/object-service/live
+curl --resolve 3lc.localhost:443:127.0.0.1 https://3lc.localhost/compute/health
 ```
 
-On Windows, curl uses the operating system's TLS stack, which refuses to proceed when it
-cannot check certificate revocation. A private CA publishes no revocation list, so add
-`--ssl-revoke-best-effort` there. The certificate itself is fine; only that check fails.
+In a browser, the Hub at <https://3lc.localhost/> and the Dashboard at
+<https://3lc.localhost/dashboard/>.
 
-## Using the deployment
+Under Docker Compose, plain HTTP is still published on 8080 and redirects:
 
-Browse to <http://localhost:8080>, or <http://localhost:30000> if you deployed with Part
-2. That serves the **Hub**, the primary entry point. The **Dashboard** is one level down
-at `/dashboard/`, and the Hub links to it. Everything is served from your own
-deployment; unlike the Default deployment, nothing is hosted by 3LC.
+```bash
+curl -I http://3lc.localhost:8080/     # 301 to https://3lc.localhost/
+```
 
-The Object Service and Compute Service sit behind the same entry point, under `/object-service`
-and `/compute`. They are HTTP APIs, not web UIs: `/object-service/` returns **403** because every
-route except the `/object-service/live` health check requires authentication. That is expected, and not a
-sign of a broken deployment.
+The redirect drops the port, because 443 is the default for https.
 
-> At startup the Object Service prints its own address, for example
-> `http://172.19.0.4:5015`. That is the container's address on the Docker network and is
-> **not reachable from your browser**. Use the published URLs above instead.
+**There is no such redirect on Kubernetes.** The Service is a `LoadBalancer` on 443 only,
+so nothing answers on the HTTP NodePort in this variant. That difference between the two
+deployment modes is expected, not a fault.
 
 ## Layout
 
