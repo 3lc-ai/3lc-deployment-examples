@@ -66,7 +66,7 @@ docker run --rm -i -v "${CERT_MOUNT}:/certs" -w /certs --entrypoint sh alpine/op
 set -e
 
 # The certificate authority. Trust this once and every certificate below is accepted.
-openssl req -x509 -newkey rsa:4096 -sha256 -days ${DAYS_CA} -nodes   -keyout ca.key -out ca.crt   -subj "/CN=3LC deployment examples local CA/O=3LC/OU=Examples"   -addext "basicConstraints=critical,CA:TRUE"   -addext "keyUsage=critical,keyCertSign,cRLSign"
+openssl req -x509 -newkey rsa:4096 -sha256 -days ${DAYS_CA} -nodes   -keyout ca.key -out ca.crt   -subj "/CN=3LC Default deployment example local CA/O=3LC/OU=Examples"   -addext "basicConstraints=critical,CA:TRUE"   -addext "keyUsage=critical,keyCertSign,cRLSign"
 
 cat > /tmp/leaf.ext <<EXT
 basicConstraints=critical,CA:FALSE
