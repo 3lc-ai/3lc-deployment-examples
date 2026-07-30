@@ -1,0 +1,42 @@
+#=============================================================================
+# <copyright>
+# Copyright (c) 2026 3LC Inc. All rights reserved.
+#
+# All rights are reserved. Reproduction or transmission in whole or in part, in
+# any form or by any means, electronic, mechanical or otherwise, is prohibited
+# without the prior written permission of the copyright owner.
+# </copyright>
+#=============================================================================
+
+# TLS with one hostname per component, layered over docker-compose.yml:
+#
+#   ./generate-certs.sh
+#   docker compose -f docker-compose.yml -f docker-compose.tls-per-host.yml up --build
+#
+#   https://hub.localhost              the Hub
+#   https://dashboard.localhost        the Dashboard
+#   https://object-service.localhost   the Object Service
+#   https://compute.localhost          the Compute Service
+#
+# Each component is told where the others are, and those URLs are resolved by
+# the BROWSER. That is what makes any one of them relocatable: point a URL at a
+# different host and only that component moves.
+
+services:
+  proxy:
+    volumes:
+      # Replaces the plain-HTTP config, because the container path is the same.
+      - "./tls-per-host.conf:/etc/nginx/conf.d/default.conf"
+      - "./certs:/etc/nginx/certs:ro"
+    ports:
+      - 443:443
+
+  dashboard:
+    command: ["--object-service", "https://object-service.localhost"]
+
+  hub_frontend:
+    environment:
+      - TLC_OBJECT_SERVICE_AUTH_SECRET=${TLC_OBJECT_SERVICE_AUTH_SECRET}
+      - TLC_OBJECT_SERVICE_URL=https://object-service.localhost
+      - TLC_COMPUTE_SERVICE_URL=https://compute.localhost
+      - TLC_DASHBOARD_URL=https://dashboard.localhost

@@ -49,7 +49,7 @@ spec:
             # This can also be configured as a Kubernetes secret for more security.
             # For the sake of the demo, a Kubernetes secret is not used.
             - name: TLC_API_KEY
-              value: "{{ tpl .Values.apiKey . }}"
+              value: {{ tpl .Values.apiKey . | required "global.apiKey is required. Pass it with --set-string global.apiKey=$TLC_API_KEY, or set it in your values file." | quote }}
             # TLC_PROJECT_ROOT_URL can be configured to provide the location where 3LC projects are stored.
             # The Compute Service uses the tlc SDK directly, so it is pointed at the same projects as the Object Service.
             - name: TLC_PROJECT_ROOT_URL

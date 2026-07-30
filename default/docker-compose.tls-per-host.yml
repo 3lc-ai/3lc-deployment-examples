@@ -1,0 +1,29 @@
+#=============================================================================
+# <copyright>
+# Copyright (c) 2026 3LC Inc. All rights reserved.
+#
+# All rights are reserved. Reproduction or transmission in whole or in part, in
+# any form or by any means, electronic, mechanical or otherwise, is prohibited
+# without the prior written permission of the copyright owner.
+# </copyright>
+#=============================================================================
+
+# TLS with one hostname per component, layered over docker-compose.yml:
+#
+#   ./generate-certs.sh
+#   docker compose -f docker-compose.yml -f docker-compose.tls-per-host.yml up --build
+#
+#   https://object-service.localhost   the Object Service
+#   https://compute.localhost          the Compute Service
+#
+# Point the hosted 3LC Hub and Dashboard at those addresses. Either service can
+# live somewhere else entirely; only the URL you give the Hub changes.
+
+services:
+  proxy:
+    volumes:
+      # Replaces the plain-HTTP config, because the container path is the same.
+      - "./tls-per-host.conf:/etc/nginx/conf.d/default.conf"
+      - "./certs:/etc/nginx/certs:ro"
+    ports:
+      - 443:443

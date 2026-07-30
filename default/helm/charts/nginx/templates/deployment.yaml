@@ -42,6 +42,11 @@ spec:
             - name: server-block
               mountPath: /etc/nginx/conf.d/default.conf
               subPath: default.conf
+          {{- if .Values.tls.enabled }}
+            - name: tls
+              mountPath: /etc/nginx/certs
+              readOnly: true
+          {{- end }}
           # A TCP check rather than an HTTP one: the proxied services may legitimately
           # answer / with a non-2xx status (the Object Service returns 403 to
           # unauthenticated requests), which would fail an httpGet probe even though
@@ -63,3 +68,8 @@ spec:
         - name: server-block
           configMap:
             name: {{ .Release.Name }}-{{ .Chart.Name }}
+      {{- if .Values.tls.enabled }}
+        - name: tls
+          secret:
+            secretName: {{ .Release.Name }}-{{ .Chart.Name }}-tls
+      {{- end }}

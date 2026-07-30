@@ -1,0 +1,118 @@
+#=============================================================================
+# <copyright>
+# Copyright (c) 2026 3LC Inc. All rights reserved.
+#
+# All rights are reserved. Reproduction or transmission in whole or in part, in
+# any form or by any means, electronic, mechanical or otherwise, is prohibited
+# without the prior written permission of the copyright owner.
+# </copyright>
+#=============================================================================
+
+# TLS at a single entry point, layered over docker-desktop.yml:
+#
+#   ./generate-certs.sh
+#   helm upgrade -i tlc-demo ./helm --kube-context docker-desktop \
+#     --namespace tlc-demo --create-namespace \
+#     -f docker-desktop.yml -f tls-gateway-values.yaml \
+#     --set-file nginx.tls.crt=certs/tls.crt \
+#     --set-file nginx.tls.key=certs/tls.key
+#
+# The certificate is passed with --set-file rather than created separately with
+# kubectl, so the whole deployment is still one command.
+#
+# The Service becomes a LoadBalancer on 443. On Docker Desktop that binds the
+# service port directly on the host, so the deployment is reached at
+# https://3lc.localhost with no port suffix, unlike the NodePort used for HTTP.
+
+global:
+  # Browser-facing address for this deployment. The Dashboard and Hub build
+  # their service URLs from it.
+  dnsName: 3lc.localhost
+
+# The base chart builds these as http://{dnsName}/..., which would be the wrong
+# scheme once TLS is on, and the browser would refuse the mixed content. Override
+# them here. These are resolved by the BROWSER, not inside the cluster.
+dashboard:
+  objectServiceUrl: "https://{{ .Values.global.dnsName }}/object-service"
+
+hub-frontend:
+  objectServiceUrl: "https://{{ .Values.global.dnsName }}/object-service"
+  computeServiceUrl: "https://{{ .Values.global.dnsName }}/compute"
+  dashboardUrl: "https://{{ .Values.global.dnsName }}/dashboard"
+
+nginx:
+  tls:
+    enabled: true
+
+  service:
+    type: LoadBalancer
+    port: 443
+
+  # nginx listens on 8443 inside the container, so it needs no privileged port.
+  containerPort: 8443
+
+  # The Kubernetes counterpart of tls-gateway.conf. Same routing as the plain-HTTP
+  # serverBlock, with TLS terminated here; the hop to each service stays HTTP.
+  serverBlock: |-
+    server {
+      listen 0.0.0.0:8443 ssl;
+      http2 on;
+      server_name 3lc.localhost;
+
+      ssl_certificate     /etc/nginx/certs/tls.crt;
+      ssl_certificate_key /etc/nginx/certs/tls.key;
+      ssl_protocols       TLSv1.2 TLSv1.3;
+
+      proxy_set_header X-Forwarded-Proto https;
+
+      # Pass everything after /object-service as is to the root of the Object Service.
+      location /object-service/ {
+        proxy_pass http://{{ .Release.Name }}-object-service:5015/;
+        proxy_redirect     off;
+        proxy_set_header   Host $http_host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+
+      # Pass everything after /compute as is to the root of the Compute Service.
+      location /compute/ {
+        proxy_pass http://{{ .Release.Name }}-compute-service:5020/;
+        proxy_redirect     off;
+        proxy_set_header   Host $http_host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+
+      # The Dashboard is served under a path prefix. Its assets are relative and webpack
+      # resolves chunks from the script URL, so it tolerates that.
+      location /dashboard/ {
+        proxy_pass http://{{ .Release.Name }}-dashboard:8080/;
+        proxy_redirect     off;
+        proxy_set_header   Host $http_host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+
+      # The two directories the Dashboard references by absolute path, which therefore do not
+      # pick up the /dashboard/ prefix.
+      location /icons/ {
+        proxy_pass http://{{ .Release.Name }}-dashboard:8080/icons/;
+        proxy_redirect     off;
+        proxy_set_header   Host $http_host;
+      }
+
+      location /workflow_images/ {
+        proxy_pass http://{{ .Release.Name }}-dashboard:8080/workflow_images/;
+        proxy_redirect     off;
+        proxy_set_header   Host $http_host;
+      }
+
+      # The Hub owns the root of the URL space; it cannot be served under a prefix.
+      location / {
+        proxy_pass http://{{ .Release.Name }}-hub-frontend:8081/;
+        proxy_redirect     off;
+        proxy_set_header   Host $http_host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+    }

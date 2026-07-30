@@ -1,0 +1,107 @@
+#=============================================================================
+# <copyright>
+# Copyright (c) 2026 3LC Inc. All rights reserved.
+#
+# All rights are reserved. Reproduction or transmission in whole or in part, in
+# any form or by any means, electronic, mechanical or otherwise, is prohibited
+# without the prior written permission of the copyright owner.
+# </copyright>
+#=============================================================================
+
+# TLS with one hostname per component, layered over docker-desktop.yml:
+#
+#   ./generate-certs.sh
+#   helm upgrade -i tlc-demo ./helm --kube-context docker-desktop #     --namespace tlc-demo --create-namespace #     -f docker-desktop.yml -f tls-per-host-values.yaml #     --set-file nginx.tls.crt=certs/tls.crt #     --set-file nginx.tls.key=certs/tls.key
+#
+# Every hostname resolves to the same LoadBalancer, and nginx picks the right
+# component from the name the browser asked for.
+
+# Each component is reached at its own hostname, so the URLs below are absolute
+# rather than paths under a shared name. They are resolved by the BROWSER.
+dashboard:
+  objectServiceUrl: "https://object-service.localhost"
+
+hub-frontend:
+  objectServiceUrl: "https://object-service.localhost"
+  computeServiceUrl: "https://compute.localhost"
+  dashboardUrl: "https://dashboard.localhost"
+
+nginx:
+  tls:
+    enabled: true
+
+  service:
+    type: LoadBalancer
+    port: 443
+
+  # nginx listens on 8443 inside the container, so it needs no privileged port.
+  containerPort: 8443
+
+  # One server block per component. One certificate covers every name through its
+  # subject alternative names.
+  serverBlock: |-
+    # Declared once here, in the http context, so each server block below stays short.
+    ssl_certificate     /etc/nginx/certs/tls.crt;
+    ssl_certificate_key /etc/nginx/certs/tls.key;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+
+    server {
+      listen 0.0.0.0:8443 ssl;
+      http2 on;
+      server_name object-service.localhost;
+
+      proxy_set_header X-Forwarded-Proto https;
+
+      location / {
+        proxy_pass http://{{ .Release.Name }}-object-service:5015;
+        proxy_redirect     off;
+        proxy_set_header   Host $http_host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+    }
+    server {
+      listen 0.0.0.0:8443 ssl;
+      http2 on;
+      server_name compute.localhost;
+
+      proxy_set_header X-Forwarded-Proto https;
+
+      location / {
+        proxy_pass http://{{ .Release.Name }}-compute-service:5020;
+        proxy_redirect     off;
+        proxy_set_header   Host $http_host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+    }
+    server {
+      listen 0.0.0.0:8443 ssl;
+      http2 on;
+      server_name dashboard.localhost;
+
+      proxy_set_header X-Forwarded-Proto https;
+
+      location / {
+        proxy_pass http://{{ .Release.Name }}-dashboard:8080;
+        proxy_redirect     off;
+        proxy_set_header   Host $http_host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+    }
+    server {
+      listen 0.0.0.0:8443 ssl;
+      http2 on;
+      server_name hub.localhost;
+
+      proxy_set_header X-Forwarded-Proto https;
+
+      location / {
+        proxy_pass http://{{ .Release.Name }}-hub-frontend:8081;
+        proxy_redirect     off;
+        proxy_set_header   Host $http_host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+    }

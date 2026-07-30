@@ -1,0 +1,41 @@
+#=============================================================================
+# <copyright>
+# Copyright (c) 2026 3LC Inc. All rights reserved.
+#
+# All rights are reserved. Reproduction or transmission in whole or in part, in
+# any form or by any means, electronic, mechanical or otherwise, is prohibited
+# without the prior written permission of the copyright owner.
+# </copyright>
+#=============================================================================
+
+# TLS at a single entry point, layered over docker-compose.yml:
+#
+#   ./generate-certs.sh
+#   docker compose -f docker-compose.yml -f docker-compose.tls-gateway.yml up --build
+#
+# Everything is then served from https://3lc.localhost. Plain HTTP on 8080 is
+# still published and redirects there.
+#
+# Only three things change: the proxy serves tls-gateway.conf with the generated
+# certificate, and the Dashboard and Hub are told to reach the other services
+# over https. Those URLs are resolved by the BROWSER, which is why they are
+# public https addresses rather than container names.
+
+services:
+  proxy:
+    volumes:
+      # Replaces the plain-HTTP config, because the container path is the same.
+      - "./tls-gateway.conf:/etc/nginx/conf.d/default.conf"
+      - "./certs:/etc/nginx/certs:ro"
+    ports:
+      - 443:443
+
+  dashboard:
+    command: ["--object-service", "https://3lc.localhost/object-service"]
+
+  hub_frontend:
+    environment:
+      - TLC_OBJECT_SERVICE_AUTH_SECRET=${TLC_OBJECT_SERVICE_AUTH_SECRET}
+      - TLC_OBJECT_SERVICE_URL=https://3lc.localhost/object-service
+      - TLC_COMPUTE_SERVICE_URL=https://3lc.localhost/compute
+      - TLC_DASHBOARD_URL=https://3lc.localhost/dashboard

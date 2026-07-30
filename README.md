@@ -60,7 +60,8 @@ They are reference material, not production manifests. Specifically:
 
 - Secrets are passed as plain environment variables and Helm values, not Kubernetes Secrets.
 - Storage is a `hostPath` bind mount, not a PersistentVolumeClaim.
-- Traffic is plain HTTP.
+- Traffic is plain HTTP by default. Each surface documents an optional HTTPS variant,
+  with certificates generated locally; a real deployment supplies its own.
 - The nginx routing is maintained twice per surface - once for Compose (`default.conf`),
   once for Helm (`nginx.serverBlock` in `helm/values.yaml`) - and the two must be kept in
   sync by hand.
