@@ -1,0 +1,70 @@
+#=============================================================================
+# <copyright>
+# Copyright (c) 2026 3LC Inc. All rights reserved.
+#
+# All rights are reserved. Reproduction or transmission in whole or in part, in
+# any form or by any means, electronic, mechanical or otherwise, is prohibited
+# without the prior written permission of the copyright owner.
+# </copyright>
+#=============================================================================
+
+# TLS at a single entry point, layered over docker-desktop.yml:
+#
+#   ./generate-certs.sh
+#   helm upgrade -i tlc-demo ./helm --kube-context docker-desktop \
+#     --namespace tlc-demo --create-namespace \
+#     -f docker-desktop.yml -f tls-gateway-values.yaml \
+#     --set-file nginx.tls.crt=certs/tls.crt \
+#     --set-file nginx.tls.key=certs/tls.key
+#
+# The certificate is passed with --set-file rather than created separately with
+# kubectl, so the whole deployment is still one command.
+#
+# The Service becomes a LoadBalancer on 443. On Docker Desktop that binds the
+# service port directly on the host, so the deployment is reached at
+# https://3lc.localhost with no port suffix, unlike the NodePort used for HTTP.
+#
+# global.dnsName is deliberately not set here: nothing in this surface consumes
+# it, because there is no Dashboard or Hub of its own to build URLs for.
+
+nginx:
+  tls:
+    enabled: true
+
+  service:
+    type: LoadBalancer
+    port: 443
+
+  # nginx listens on 8443 inside the container, so it needs no privileged port.
+  containerPort: 8443
+
+  # The Kubernetes counterpart of tls-gateway.conf.
+  serverBlock: |-
+    server {
+      listen 0.0.0.0:8443 ssl;
+      http2 on;
+      server_name 3lc.localhost;
+
+      ssl_certificate     /etc/nginx/certs/tls.crt;
+      ssl_certificate_key /etc/nginx/certs/tls.key;
+      ssl_protocols       TLSv1.2 TLSv1.3;
+
+      proxy_set_header X-Forwarded-Proto https;
+
+      location / {
+        proxy_pass http://{{ .Release.Name }}-object-service:5015/;
+        proxy_redirect     off;
+        proxy_set_header   Host $http_host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+
+      # Pass everything after /compute as is to the root of the Compute Service.
+      location /compute/ {
+        proxy_pass http://{{ .Release.Name }}-compute-service:5020/;
+        proxy_redirect     off;
+        proxy_set_header   Host $http_host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+    }

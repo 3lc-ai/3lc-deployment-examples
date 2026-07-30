@@ -259,6 +259,112 @@ docker push <registry>/tlc-default-compute-service:<tag>
 The `hostPath` volume is a demonstration convenience only - it pins the workload to one
 node and is not appropriate for production.
 
+## Serving over HTTPS
+
+Both parts above serve plain HTTP, which works on a single machine because browsers
+treat `localhost` as a trustworthy origin. Serve any component from anywhere else and that
+stops being true: a browser will not let an https page call a plain-HTTP service, so the
+whole deployment has to move to https together.
+
+In the Default deployment, the Hub and Dashboard you use are hosted by 3LC over https, and
+they call the services deployed here from your browser. That works over plain HTTP today
+only because they are on `localhost`. Move them to a shared host and they must be https.
+
+The 3LC services cannot terminate TLS themselves. nginx does it, and the hop from nginx to
+each service stays plain HTTP on the internal network. The browser sees https throughout.
+This is the same arrangement an Ingress, a load balancer, or a corporate reverse proxy
+uses, so swapping nginx for one of those only changes who holds the certificate and nothing
+else.
+
+### Generate the certificates
+
+```bash
+./generate-certs.sh
+```
+
+This writes `certs/ca.crt`, `certs/tls.crt` and `certs/tls.key`. It runs openssl in a
+container, so nothing needs installing, and `certs/` is gitignored.
+
+No public certificate authority can issue for these names. `.localhost` is not a real
+domain, so Let's Encrypt and similar have no way to validate ownership. Avoiding browser
+warnings therefore means trusting the CA generated here.
+
+### Trust the CA, once
+
+| | |
+| --- | --- |
+| Windows | `certutil -user -addstore Root certs\ca.crt` |
+| macOS | `sudo security add-trusted-cert -d -k /Library/Keychains/System.keychain certs/ca.crt` |
+| Linux | copy `certs/ca.crt` into `/usr/local/share/ca-certificates/` and run `sudo update-ca-certificates` |
+
+Firefox keeps its own trust store, so import there separately if you use it. To undo on
+Windows: `certutil -user -delstore Root "3LC deployment examples local CA"`.
+
+In a real deployment you skip all of this and drop in a certificate from your own PKI, or
+one issued by cert-manager in the cluster.
+
+### One hostname per component
+
+This is the arrangement to copy. Each component gets its own address, which is how they
+are laid out in a real deployment.
+
+| URL | Serves |
+| --- | --- |
+| <https://object-service.localhost> | Object Service |
+| <https://compute.localhost> | Compute Service |
+
+Docker Compose:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.tls-per-host.yml up --build
+```
+
+Kubernetes:
+
+```bash
+helm upgrade -i tlc-demo ./helm   --kube-context docker-desktop   --namespace tlc-demo --create-namespace   -f docker-desktop.yml -f tls-per-host-values.yaml   --set-file nginx.tls.crt=certs/tls.crt   --set-file nginx.tls.key=certs/tls.key
+```
+
+`--set-file` passes the certificate contents into the chart, which creates the
+`kubernetes.io/tls` Secret, so there is no separate `kubectl create secret` step. The
+Service becomes a `LoadBalancer` on 443 rather than the NodePort used for HTTP; Docker
+Desktop binds that straight onto the host, so the URLs are the same as the Compose ones.
+
+Because each component is told where the others are, any one of them can live
+somewhere else. Point a URL at another host and only that component moves; nothing
+else in the deployment changes.
+
+Nothing is served under a path prefix here, so each component's own absolute paths work
+untouched, and one certificate covers every name through its subject alternative names.
+
+### If you would rather use a single hostname
+
+There is also a variant that puts everything behind one name, `3lc.localhost`, routed by
+path. It needs one certificate and one DNS name, which suits a single-host pilot, but it
+cannot express a deployment where components live in different places.
+
+| URL | Serves |
+| --- | --- |
+| <https://3lc.localhost/> | Object Service |
+| <https://3lc.localhost/compute/> | Compute Service |
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.tls-gateway.yml up --build
+# or, for Kubernetes, swap tls-per-host-values.yaml for tls-gateway-values.yaml
+```
+
+### Verifying from the command line
+
+Browsers resolve `*.localhost` by themselves; curl does not, and needs to be told:
+
+```bash
+curl --resolve object-service.localhost:443:127.0.0.1 https://object-service.localhost/live
+```
+
+On Windows, curl uses the operating system's TLS stack, which refuses to proceed when it
+cannot check certificate revocation. A private CA publishes no revocation list, so add
+`--ssl-revoke-best-effort` there. The certificate itself is fine; only that check fails.
+
 ## Using the deployment
 
 The Object Service is an HTTP API, not a web UI. Browsing to it returns **403**: every
@@ -296,3 +402,10 @@ this work.
 | `docker-desktop.yml` | Part 2 - Kubernetes | Values overlay for the local Docker Desktop cluster |
 | `deploy.sh` | Part 2 - Kubernetes | The three Helm commands above, scripted |
 | `mounts/` | both | Host-side project storage (not committed) |
+| `generate-certs.sh` | HTTPS | Creates the local CA and certificate in `certs/` |
+| `tls-per-host.conf` | HTTPS, Part 1 | nginx config, one hostname per component |
+| `docker-compose.tls-per-host.yml` | HTTPS, Part 1 | Compose overlay, one hostname per component |
+| `tls-per-host-values.yaml` | HTTPS, Part 2 | Values overlay, one hostname per component |
+| `tls-gateway.conf` | HTTPS, Part 1 | nginx config, single hostname |
+| `docker-compose.tls-gateway.yml` | HTTPS, Part 1 | Compose overlay, single hostname |
+| `tls-gateway-values.yaml` | HTTPS, Part 2 | Values overlay, single hostname |

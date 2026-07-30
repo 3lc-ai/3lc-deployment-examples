@@ -1,0 +1,29 @@
+#=============================================================================
+# <copyright>
+# Copyright (c) 2026 3LC Inc. All rights reserved.
+#
+# All rights are reserved. Reproduction or transmission in whole or in part, in
+# any form or by any means, electronic, mechanical or otherwise, is prohibited
+# without the prior written permission of the copyright owner.
+# </copyright>
+#=============================================================================
+
+# TLS at a single entry point, layered over docker-compose.yml:
+#
+#   ./generate-certs.sh
+#   docker compose -f docker-compose.yml -f docker-compose.tls-gateway.yml up --build
+#
+# The services are then served from https://3lc.localhost. Plain HTTP on 8080 is
+# still published and redirects there.
+#
+# Point the hosted 3LC Hub and Dashboard at the https addresses; a browser will
+# not let their https pages call plain-HTTP services from anywhere but localhost.
+
+services:
+  proxy:
+    volumes:
+      # Replaces the plain-HTTP config, because the container path is the same.
+      - "./tls-gateway.conf:/etc/nginx/conf.d/default.conf"
+      - "./certs:/etc/nginx/certs:ro"
+    ports:
+      - 443:443

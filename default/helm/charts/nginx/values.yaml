@@ -31,3 +31,14 @@ service:
 # Supplied by the parent chart's values.yaml and rendered as a template, so it
 # can reference {{ .Release.Name }} to address the other services.
 serverBlock: ""
+
+# TLS is off by default; the plain-HTTP deployment is unchanged.
+# The TLS values overlays turn this on and supply the certificate with
+#   helm --set-file nginx.tls.crt=certs/tls.crt --set-file nginx.tls.key=certs/tls.key
+# The 3LC services cannot terminate TLS themselves, so it ends here and the hop
+# to each service stays plain HTTP inside the cluster.
+tls:
+  enabled: false
+  # PEM contents, not paths.
+  crt: ""
+  key: ""
