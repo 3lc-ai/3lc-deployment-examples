@@ -2,12 +2,13 @@
     "cSpell.words": [
         "bitnami",
         "cryptlex",
-        "kubeadm",
         "hmac",
+        "kubeadm",
         "nodeport",
         "pypi",
         "subchart",
         "torchvision",
+        "venvs",
         "waitress"
     ]
 }

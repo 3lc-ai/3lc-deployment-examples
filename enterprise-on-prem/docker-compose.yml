@@ -60,8 +60,17 @@ services:
       - TLC_LICENSE=${TLC_LICENSE}
       - TLC_OBJECT_SERVICE_AUTH_SECRET=${TLC_OBJECT_SERVICE_AUTH_SECRET}
       - TLC_PROJECT_ROOT_URL=/data/3lc/project
+      # Keep uv's wheel cache alongside the plugin venvs, on the same mount, so it
+      # survives too and uv can reuse downloads instead of fetching them again.
+      - UV_CACHE_DIR=/root/.3lc-compute/uv-cache
     volumes:
       - ./mounts/3lc:/data/3lc
+      # Everything the Compute Service remembers lives in ~/.3lc-compute: settings.json,
+      # which records the installed plugins, and the per-plugin virtual environments under
+      # managed-plugins/. Without this mount both are lost whenever the container is
+      # recreated, so installed plugins silently disappear. The path is mounted directly
+      # because the settings file location is not configurable.
+      - ./mounts/3lc-compute:/root/.3lc-compute
     ports:
       - 5002:5020
 

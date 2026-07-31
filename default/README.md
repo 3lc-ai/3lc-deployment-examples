@@ -33,6 +33,7 @@ Both parts read the same two settings, but each takes them from a different plac
 | --- | --- | --- |
 | 3LC account API key | `TLC_API_KEY` in `.env` | `global.apiKey`, passed to Helm - see [Configure](#configure) |
 | Project storage location | the `./mounts/3lc` bind mount in `docker-compose.yml` | `global.pvc_host_path` in `docker-desktop.yml` |
+| Compute Service plugin state | the `./mounts/3lc-compute` bind mount in `docker-compose.yml` | the same directory, reached with `subPath` on `global.pvc_host_path` |
 
 Before either part, create the project folder:
 
@@ -40,6 +41,7 @@ Before either part, create the project folder:
 mkdir mounts
 mkdir mounts\3lc
 mkdir mounts\3lc\project
+mkdir mounts\3lc-compute
 ```
 
 Then copy `.env.example` to `.env` **in this folder** and fill it in:
@@ -55,6 +57,18 @@ read it at all, see [Configure](#configure) in Part 2.
 `mounts/3lc` is mounted as `/data/3lc` inside the Object Service container, and
 `TLC_PROJECT_ROOT_URL` points at `/data/3lc/project`, so 3LC projects written by
 the service appear in `mounts/3lc/project` on your machine.
+
+`mounts/3lc-compute` is mounted as `/root/.3lc-compute` inside the Compute Service, and
+holds everything it remembers: `settings.json`, which records the installed plugins, and a
+virtual environment per plugin under `managed-plugins/`. Without it an install appears to
+succeed and the plugin then disappears the next time the container or pod is replaced,
+because that state lives in the container's own filesystem. uv's wheel cache is kept
+alongside them, so later installs reuse earlier downloads instead of fetching them again.
+
+Both parts use the same host directory, so a plugin installed under Docker Compose is
+already there in Kubernetes and the other way round. That is usually convenient. Avoid
+installing plugins from both at the same time, though: each install rewrites the same
+`settings.json`, so two that finish together can lose one of the entries.
 
 ## Part 1: Docker Compose
 
@@ -504,7 +518,8 @@ deployment modes is expected, not a fault.
 | `helm/` | Part 2 - Kubernetes | Umbrella chart: `values.yaml` plus the per-component subcharts in `helm/charts` (object-service, nginx, and on Enterprise the dashboard). No external chart dependencies. |
 | `docker-desktop.yml` | Part 2 - Kubernetes | Values overlay for the local Docker Desktop cluster |
 | `deploy.sh` | Part 2 - Kubernetes | The Helm command above, with context checks and the secrets read from `.env` |
-| `mounts/` | both | Host-side project storage (not committed) |
+| `mounts/3lc/` | both | Host-side project storage (not committed) |
+| `mounts/3lc-compute/` | both | Compute Service state: installed plugins, their virtual environments, and uv's cache (not committed) |
 | `generate-certs.sh` | HTTPS | Creates the local CA and certificate in `certs/` |
 | `tls-per-host.conf` | HTTPS, Part 1 | nginx config, one hostname per component |
 | `docker-compose.tls-per-host.yml` | HTTPS, Part 1 | Compose overlay, one hostname per component |

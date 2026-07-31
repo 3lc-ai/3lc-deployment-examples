@@ -26,6 +26,12 @@ RUN pip install --no-cache \
     --extra-index-url https://pypi.org/simple \
     3lc-compute==${TLC_COMPUTE_VERSION}
 
+# The Compute Service provisions each plugin into its own virtual environment with uv, and
+# looks it up on PATH, so installing a plugin fails without it. A future 3lc-compute will
+# declare uv>=0.9.7 as a dependency; until then this installs the same constraint here.
+# Remove this once the version pinned above brings uv in on its own.
+RUN pip install --no-cache "uv>=0.9.7"
+
 EXPOSE 5020
 
 # The environment variables TLC_LICENSE and TLC_OBJECT_SERVICE_AUTH_SECRET should be set at run time.
