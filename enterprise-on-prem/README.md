@@ -35,9 +35,50 @@ Three distinct secrets:
 
 | Secret | Held by | Purpose |
 | --- | --- | --- |
-| `TLC_PYPI_ACCESS_KEY`, `TLC_PYPI_SECRET_KEY` | the Docker build | Download the `3lc`, `3lc-dashboard` and `3lc-hub-frontend` wheels from the private repository. Build-time only; not present in the running containers. |
+| `TLC_PYPI_ACCESS_KEY`, `TLC_PYPI_SECRET_KEY` | the Docker build | Download the `3lc`, `3lc-dashboard` and `3lc-hub-frontend` wheels from the private repository. Build-time only, passed as build secrets, so they are absent from the running containers **and from the built images** - see [How the build keeps the PyPI credentials out of the images](#how-the-build-keeps-the-pypi-credentials-out-of-the-images). |
 | `TLC_LICENSE` | Object Service, Compute Service | 3LC license key, validated at startup. See [licensing](https://docs.3lc.ai/3lc/latest/getting-started/deployment-options/enterprise-on-prem/licensing.html). |
 | `TLC_OBJECT_SERVICE_AUTH_SECRET` | Object Service, Compute Service, Dashboard, Hub | Shared HMAC secret, identical for all four. The Object Service and Compute Service use it to authenticate incoming requests; the Dashboard and Hub present it. The Compute Service and the Hub both refuse to start without it. See [secure communication](https://docs.3lc.ai/3lc/latest/getting-started/deployment-options/enterprise-on-prem/secure-communication.html). |
+
+### How the build keeps the PyPI credentials out of the images
+
+The PyPI keys are the only secrets consumed **during the build**, and that makes them the
+only secrets that can end up inside a distributable artifact. Docker records every `RUN`
+command in the image's layer metadata, so a build argument interpolated into one is stored
+verbatim and `docker history` will show it to anyone holding the image - including anyone
+who pulls it from the registry you push to.
+
+They are therefore passed as [build
+secrets](https://docs.docker.com/build/building/secrets/) instead - specifically the
+*secret mounts* described there. `docker-compose.yml` declares the two secrets from
+the environment, each build mounts them for a single `RUN`, and nothing is written to a
+layer:
+
+```dockerfile
+RUN --mount=type=secret,id=tlc_pypi_access_key,env=TLC_PYPI_ACCESS_KEY \
+    --mount=type=secret,id=tlc_pypi_secret_key,env=TLC_PYPI_SECRET_KEY \
+    pip install --no-cache \
+      --index-url "https://${TLC_PYPI_ACCESS_KEY}:${TLC_PYPI_SECRET_KEY}@..." \
+      ...
+```
+
+`env=` puts each secret in the environment of that one `RUN`, so the Dockerfile refers to
+it by name and the value itself is never part of the instruction.
+
+You can confirm it for yourself - this should print the variable names and no credentials:
+
+```bash
+docker history --no-trunc tlc-enterprise-object-service:latest | grep pypi.3lc.ai
+```
+
+The other two secrets need no such treatment. They are supplied at run time, as
+`environment:` under Compose or as an environment variable in the pod spec, and never
+touch the build, so they are absent from the images entirely. They are visible to anyone
+who can inspect the running container or read Secrets in the namespace, which is why the
+Kubernetes part says to use real Kubernetes Secrets for anything beyond a demo.
+
+> One thing to watch regardless: `docker compose config` prints the resolved file with
+> **every** value expanded, including all four secrets. Redact its output before pasting it
+> into a bug report.
 
 ## Configuration
 
@@ -45,7 +86,7 @@ Both parts need the same settings, but each takes them from a different place:
 
 | Setting | Docker Compose reads it from | Kubernetes reads it from |
 | --- | --- | --- |
-| PyPI access and secret keys | `.env`, passed as build args | not read; images are built by Part 1 |
+| PyPI access and secret keys | `.env`, passed as build secrets | not read; images are built by Part 1 |
 | License key | `TLC_LICENSE` in `.env` | `global.licenseKey`, passed to Helm - see [Configure](#configure) |
 | Object Service auth secret | `TLC_OBJECT_SERVICE_AUTH_SECRET` in `.env` | `global.objectServiceAuthSecret`, passed to Helm - see [Configure](#configure) |
 | Project storage location | the `./mounts/3lc` bind mount in `docker-compose.yml` | `global.pvc_host_path` in `docker-desktop.yml` |
