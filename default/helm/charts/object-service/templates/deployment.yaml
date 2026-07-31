@@ -32,7 +32,8 @@ spec:
           imagePullPolicy: {{ tpl .Values.imagePullPolicy . }}
           volumeMounts:
             - name: 3lc-root
-              mountPath: /data
+              mountPath: /data/3lc
+              subPath: 3lc
           ports:
             - name: http-server
               containerPort: {{ required "object-service: servicePort is required" .Values.servicePort }}

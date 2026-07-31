@@ -32,7 +32,8 @@ spec:
           imagePullPolicy: {{ tpl .Values.imagePullPolicy . }}
           volumeMounts:
             - name: 3lc-root
-              mountPath: /data
+              mountPath: /data/3lc
+              subPath: 3lc
             # Everything the Compute Service remembers lives in ~/.3lc-compute: settings.json,
             # which records the installed plugins, and the per-plugin virtual environments
             # under managed-plugins/. Without this it is all lost whenever the pod restarts,
