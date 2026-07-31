@@ -31,7 +31,7 @@ spec:
           image: "{{- tpl .Values.image . }}"
           imagePullPolicy: {{ tpl .Values.imagePullPolicy . }}
           volumeMounts:
-            - name: my-volume
+            - name: 3lc-root
               mountPath: /data
             # Everything the Compute Service remembers lives in ~/.3lc-compute: settings.json,
             # which records the installed plugins, and the per-plugin virtual environments
@@ -39,7 +39,7 @@ spec:
             # so installed plugins silently disappear. subPath keeps it on the same volume as
             # the project data, which lands it on the same host directory Compose uses.
             # The path is mounted directly because the settings file location is not configurable.
-            - name: my-volume
+            - name: 3lc-root
               mountPath: /root/.3lc-compute
               subPath: 3lc-compute
           ports:
@@ -68,7 +68,7 @@ spec:
             - name: UV_CACHE_DIR
               value: "/root/.3lc-compute/uv-cache"
       volumes:
-        - name: my-volume
+        - name: 3lc-root
           hostPath:
             path: {{ tpl .Values.pvc_host_path . }}
             type: DirectoryOrCreate

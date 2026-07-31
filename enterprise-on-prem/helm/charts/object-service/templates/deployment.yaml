@@ -31,7 +31,7 @@ spec:
           image: "{{- tpl .Values.image . }}"
           imagePullPolicy: {{ tpl .Values.imagePullPolicy . }}
           volumeMounts:
-            - name: my-volume
+            - name: 3lc-root
               mountPath: /data
           ports:
             - name: http-server
@@ -61,7 +61,7 @@ spec:
             - name: TLC_PROJECT_ROOT_URL
               value: "/data/3lc/project"
       volumes:
-        - name: my-volume
+        - name: 3lc-root
           hostPath:
             path: {{ tpl .Values.pvc_host_path . }}
             type: DirectoryOrCreate
