@@ -8,17 +8,26 @@
 # </copyright>
 #=============================================================================
 
+# syntax=docker/dockerfile:1
+
 # This can be any supported Python version. The Dashboard does not require any third party packages to serve the static contents.
 FROM python:3.12
 
-ARG ACCESS_KEY
-ARG SECRET_KEY
 ARG DASHBOARD_VERSION
 
 # Upgrade pip first for a consistent, modern resolver across all 3LC images.
 RUN pip install --no-cache --upgrade pip
 
-RUN pip install --no-cache --index-url https://${ACCESS_KEY}:${SECRET_KEY}@pypi.3lc.ai/repositories/releases --extra-index-url https://pypi.org/simple 3lc-dashboard==${DASHBOARD_VERSION}
+# The private PyPI credentials arrive as build secrets, not build args. A build arg
+# interpolated into a RUN line is recorded verbatim in the image's layer metadata, where
+# `docker history` will show it to anyone holding the image. A secret mount exists only
+# for the duration of this one RUN and is never written to a layer.
+RUN --mount=type=secret,id=tlc_pypi_access_key,env=TLC_PYPI_ACCESS_KEY \
+    --mount=type=secret,id=tlc_pypi_secret_key,env=TLC_PYPI_SECRET_KEY \
+    pip install --no-cache \
+      --index-url "https://${TLC_PYPI_ACCESS_KEY}:${TLC_PYPI_SECRET_KEY}@pypi.3lc.ai/repositories/releases" \
+      --extra-index-url https://pypi.org/simple \
+      "3lc-dashboard==${DASHBOARD_VERSION}"
 
 EXPOSE 8080
 
