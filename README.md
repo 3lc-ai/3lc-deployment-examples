@@ -54,6 +54,78 @@ Each surface documents two deployments:
 So Part 1 stands alone, and Part 2 composes it. Each surface's README explains exactly
 what is reused and what has to be configured a second time.
 
+## Testing the examples
+
+`tests/` exercises the deployments end to end: for each surface, each platform and each
+topology it builds the images, brings the deployment up, checks every component answers,
+and tears it down again. That is twelve combinations, and a full run takes five to ten
+minutes.
+
+```bash
+uv sync                                             # once, to create the environment
+uv run pytest                                       # all twelve combinations
+uv run pytest -m compose                            # Compose only, about two minutes
+uv run pytest -m kubernetes                         # Helm only, about four minutes
+uv run pytest tests/default                         # one surface
+uv run pytest tests/default/kubernetes              # one surface on one platform
+uv run pytest tests/default/compose/test_http.py    # one combination
+uv run pytest --keep-stack tests/default/compose/test_http.py   # leave it up, to poke at it
+```
+
+The tests are laid out by surface, then platform, one module per topology:
+
+```text
+tests/
+  checks.py           the assertions, written once
+  deployments.py      which components each surface serves, and at which URL
+  conftest.py         brings a deployment up, waits for it, tears it down
+  default/
+    compose/          test_http.py  test_tls_per_host.py  test_tls_gateway.py
+    kubernetes/       test_http.py  test_tls_per_host.py  test_tls_gateway.py
+  enterprise_on_prem/
+    compose/          ... the same three
+    kubernetes/       ... the same three
+```
+
+Each test module is only wiring: it names its topology and subclasses the shared checks, so
+an assertion is written once and runs against all twelve deployments. The Default surface has
+no Dashboard or Hub, so those checks skip there rather than being duplicated away.
+
+Configuration is resolved the way Docker Compose resolves it: from the environment when the
+variable is set there, otherwise from the surface's `.env`. So a local run uses `.env`,
+while CI can export the variables and never create the file. When a required value is
+missing altogether the tests skip rather than fail, since that is a machine setup problem
+and not a defect in the examples.
+
+The HTTPS topologies need certificates, and the tests run `generate-certs.sh` for a surface
+if its `certs/` is not already populated. They do **not** touch the operating system trust
+store: each request is verified against the generated `certs/ca.crt` directly, so the tests
+need no administrator rights and leave no trust changes behind. Trusting the CA, as the
+surface READMEs describe, is only needed for a browser.
+
+The Kubernetes deployments need `helm` and `kubectl` on PATH and a Kubeadm-provisioned
+Docker Desktop cluster; they skip with a reason when any of that is absent. They build the
+images with Compose first, because the chart deploys images rather than building them.
+
+Only one deployment can run at a time, on either platform: both surfaces publish the same
+host ports, and all four HTTPS deployments bind 443. The fixture therefore stops every
+example deployment, Compose and Helm alike, before starting one. Running the tests will
+take down a deployment you have up by hand.
+
+### What the tests do and do not prove
+
+They prove that **each component comes up and is reachable at its documented address**: the
+services answer their health endpoints, the Dashboard and Hub return their own pages rather
+than another component's, and the Hub's links resolve. That covers the routing, the
+overlays, the certificates and the URLs the READMEs publish.
+
+They do **not** prove that the components talk to each other. The Hub and Dashboard are
+browser applications: they fetch from the Object Service and Compute Service from the
+browser. Confirming the components are genuinely connected means either reproducing the
+browser's authenticated API calls, or driving a real browser, which is beyond the scope of
+these examples. To verify inter-connectivity, follow the "Verify..." sections in each
+deployment README.
+
 ## What these examples are not
 
 They are reference material, not production manifests. Specifically:

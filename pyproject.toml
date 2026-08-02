@@ -1,0 +1,35 @@
+[project]
+name = "3lc-deployment-examples"
+version = "0"
+description = "Tests for the 3LC deployment examples"
+requires-python = ">=3.11"
+authors = [
+    {name = "3LC", email = "support@3lc.ai"},
+]
+license = {text = "Proprietary"}
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+    "pytest-timeout>=2.3.1",
+    "requests>=2.33.0",
+    "types-requests>=2.33.0.0",
+    "ruff>=0.16,<0.17",
+]
+
+[tool.uv]
+# The repository is a set of deployment examples, not a distributable package.
+# There is nothing to build or install; the dependency group exists only to run
+# the tests.
+package = false
+default-groups = ["dev"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+# A deliberately small set: pycodestyle errors and warnings, pyflakes, import
+# sorting, and pyupgrade. Enough to keep the tests tidy without the repository
+# carrying a lint policy of its own.
+# Full list of rules: https://docs.astral.sh/ruff/rules
+select = ["E", "F", "I", "UP", "W"]
