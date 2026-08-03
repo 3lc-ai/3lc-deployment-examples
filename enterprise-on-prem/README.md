@@ -94,9 +94,12 @@ Both parts need the same settings, but each takes them from a different place:
 
 Before either part, create the project folder:
 
+```bash
+mkdir -p mounts/3lc/project mounts/3lc-compute
+```
+
 ```bat
-mkdir mounts
-mkdir mounts\3lc
+rem Windows cmd
 mkdir mounts\3lc\project
 mkdir mounts\3lc-compute
 ```
@@ -133,8 +136,8 @@ Self-contained. Requires only Docker.
 
 ### Prerequisites
 
-1. Docker Desktop (WSL 2 backend on Windows)
-2. `.env` and `mounts/` created as described under [Configuration](#configuration)
+1. Docker Desktop (WSL 2 backend if on Windows).
+2. `.env` and `mounts/` created as described under [Configuration](#configuration).
 
 ### Build and run
 
@@ -252,7 +255,8 @@ again in `docker-desktop.yml`.
 1. Everything from Part 1, and `docker compose build` (or `up --build`) has been run at least once
 2. Kubernetes enabled in Docker Desktop, using the **Kubeadm** cluster provisioning
    method (see below)
-3. `helm` installed (Windows or WSL)
+3. `helm` and `kubectl` on PATH. Docker Desktop supplies `kubectl` on Windows and
+   macOS but not on Linux, where it has to be installed separately
 
 #### Cluster provisioning method
 
@@ -304,11 +308,13 @@ Then edit `docker-desktop.yml` for the rest:
 - `global.dnsName` is how a **browser** reaches the deployment. `helm/values.yaml` builds
   the Dashboard's Object Service URL as `http://{dnsName}/object-service`, so this must be an address
   that resolves from the browser: `localhost:30000` locally, your real hostname otherwise.
-- `global.pvc_host_path` is the absolute path to this folder's `mounts` directory, in
-  Docker Desktop's host-mount form. A Windows path like
+- `global.pvc_host_path` is the absolute path to this folder's `mounts` directory, as the
+  cluster sees it. The checked-in value is an example and will not match your checkout.
+  Docker Desktop reaches the host filesystem through a prefix, so a Windows path like
   `C:\sources\tlc\3lc-deployment-examples\enterprise-on-prem\mounts` becomes
   `/run/desktop/mnt/host/c/sources/tlc/3lc-deployment-examples/enterprise-on-prem/mounts`.
-  The checked-in value is an example and will not match your checkout.
+  A cluster running directly on Linux takes the path as it is, such as
+  `/home/you/3lc-deployment-examples/enterprise-on-prem/mounts`.
 
 Both secrets are passed as plain values into the pod spec here, to keep the example
 readable. In a real deployment, use Kubernetes Secrets.

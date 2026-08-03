@@ -51,7 +51,8 @@ global:
   objectServiceAuthSecret: #
 
   # This is to demonstrate the ability to use volume mounts.
-  # Absolute path to this folder's `mounts` directory, in Docker Desktop's host-mount form:
-  # a Windows path C:\some\path\mounts becomes /run/desktop/mnt/host/c/some/path/mounts.
+  # Absolute path to this folder's `mounts` directory, as the cluster sees it. Docker Desktop
+  # reaches the host through a prefix, so C:\some\path\mounts becomes
+  # /run/desktop/mnt/host/c/some/path/mounts; a cluster on Linux takes the path as it is.
   # The value below is an EXAMPLE and will not match your checkout — update it.
   pvc_host_path: /run/desktop/mnt/host/c/sources/tlc/3lc-deployment-examples/enterprise-on-prem/mounts
