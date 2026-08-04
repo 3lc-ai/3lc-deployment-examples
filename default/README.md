@@ -37,9 +37,12 @@ Both parts read the same two settings, but each takes them from a different plac
 
 Before either part, create the project folder:
 
+```bash
+mkdir -p mounts/3lc/project mounts/3lc-compute
+```
+
 ```bat
-mkdir mounts
-mkdir mounts\3lc
+rem Windows cmd
 mkdir mounts\3lc\project
 mkdir mounts\3lc-compute
 ```
@@ -76,8 +79,8 @@ Self-contained. Requires only Docker.
 
 ### Prerequisites
 
-1. Docker Desktop (WSL 2 backend on Windows)
-2. `.env` and `mounts/` created as described under [Configuration](#configuration)
+1. Docker Desktop (WSL 2 backend if on Windows).
+2. `.env` and `mounts/` created as described under [Configuration](#configuration).
 
 ### Build and run
 
@@ -165,7 +168,8 @@ Two consequences:
 1. Everything from Part 1, and `docker compose build` (or `up --build`) has been run at least once
 2. Kubernetes enabled in Docker Desktop, using the **Kubeadm** cluster provisioning
    method (see below)
-3. `helm` installed (Windows or WSL)
+3. `helm` and `kubectl` on PATH. Docker Desktop supplies `kubectl` on Windows and
+   macOS but not on Linux, where it has to be installed separately
 
 #### Cluster provisioning method
 
@@ -209,11 +213,13 @@ published. If you run your own Helm command instead of `deploy.sh`, pass it the 
 
 Then edit `docker-desktop.yml` for the rest:
 
-- `global.pvc_host_path` is the absolute path to this folder's `mounts` directory, in
-  Docker Desktop's host-mount form. A Windows path like
+- `global.pvc_host_path` is the absolute path to this folder's `mounts` directory, as the
+  cluster sees it. The checked-in value is an example and will not match your checkout.
+  Docker Desktop reaches the host filesystem through a prefix, so a Windows path like
   `C:\sources\tlc\3lc-deployment-examples\default\mounts` becomes
-  `/run/desktop/mnt/host/c/sources/tlc/3lc-deployment-examples/default/mounts`. The
-  checked-in value is an example and will not match your checkout.
+  `/run/desktop/mnt/host/c/sources/tlc/3lc-deployment-examples/default/mounts`. A cluster
+  running directly on Linux takes the path as it is, such as
+  `/home/you/3lc-deployment-examples/default/mounts`.
 
 ### Deploy
 
