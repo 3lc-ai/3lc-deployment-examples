@@ -28,6 +28,12 @@ nginx:
   # Everything after / is passed to the Object Service by default, e.g. /api/live -> object-service:5015/live.
   # Thus, the trailing slash in both the location and proxy_pass is important.
   serverBlock: |-
+    # When nginx adds a missing trailing slash it redirects to a URL it builds itself,
+    # using the port it listens on rather than the one the caller used. Behind a
+    # published port or a NodePort those differ, so /object-service would send a browser
+    # to a port nothing serves. Relative redirects leave the host and port alone.
+    absolute_redirect off;
+
     server {
       listen 0.0.0.0:8080;
       location / {

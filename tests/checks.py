@@ -47,6 +47,24 @@ class DeploymentChecks:
         assert payload["status"] == "ok"
         assert payload["service"] == "3lc-compute"
 
+    def test_paths_without_a_trailing_slash_stay_on_the_same_port(self, stack: Stack) -> None:
+        """A component reached by path prefix must redirect back to itself.
+
+        nginx adds the missing slash with a redirect it builds from the port it
+        listens on, which is not the port the caller used once the deployment is
+        behind a published port or a NodePort. Left absolute, the READMEs' own
+        URLs send a browser to a port nothing serves.
+        """
+        for component in stack.components:
+            base = stack.url(component)
+            if base.count("/") < 3:  # a bare origin has no path prefix to strip
+                continue
+            response = requests.get(base, allow_redirects=False, **stack.request_kwargs())
+            if response.status_code not in (301, 302):
+                continue
+            location = response.headers["location"]
+            assert location.startswith("/"), f"{component}: redirect is absolute: {location}"
+
     def test_dashboard_loads(self, stack: Stack) -> None:
         if "dashboard" not in stack.components:
             pytest.skip(f"{stack.surface} does not deploy the Dashboard")
@@ -106,8 +124,17 @@ class ComposeTlsPerHostChecks:
         component keeps its own origin rather than being funnelled to one.
         """
         response = requests.get("http://object-service.localhost:8080/live", allow_redirects=False, timeout=30)
-        assert response.status_code == 301
+        assert response.status_code == 302
         assert response.headers["location"] == "https://object-service.localhost/live"
+
+    def test_plain_http_does_not_redirect_other_names(self, stack: Stack) -> None:
+        """A name this topology does not serve is refused, not redirected.
+
+        Redirecting it would send the caller to a component that happens to be
+        first in the config, and a browser would remember the redirect.
+        """
+        response = requests.get("http://localhost:8080/", allow_redirects=False, timeout=30)
+        assert response.status_code == 404
 
 
 class ComposeTlsGatewayChecks:
@@ -115,5 +142,10 @@ class ComposeTlsGatewayChecks:
 
     def test_plain_http_redirects_to_https(self, stack: Stack) -> None:
         response = requests.get("http://3lc.localhost:8080/", allow_redirects=False, timeout=30)
-        assert response.status_code == 301
+        assert response.status_code == 302
         assert response.headers["location"] == "https://3lc.localhost/"
+
+    def test_plain_http_does_not_redirect_other_names(self, stack: Stack) -> None:
+        """Only the gateway hostname is redirected; anything else is refused."""
+        response = requests.get("http://localhost:8080/", allow_redirects=False, timeout=30)
+        assert response.status_code == 404

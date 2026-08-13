@@ -54,6 +54,12 @@ nginx:
   # The Kubernetes counterpart of tls-gateway.conf. Same routing as the plain-HTTP
   # serverBlock, with TLS terminated here; the hop to each service stays HTTP.
   serverBlock: |-
+    # When nginx adds a missing trailing slash it redirects to a URL it builds itself,
+    # using the port it listens on rather than the one the caller used. Behind a
+    # published port or a NodePort those differ, so /object-service would send a browser
+    # to a port nothing serves. Relative redirects leave the host and port alone.
+    absolute_redirect off;
+
     server {
       listen 0.0.0.0:8443 ssl;
       http2 on;
