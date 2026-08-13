@@ -33,6 +33,12 @@ nginx:
   # One server block per component. One certificate covers every name through its
   # subject alternative names.
   serverBlock: |-
+    # When nginx adds a missing trailing slash it redirects to a URL it builds itself,
+    # using the port it listens on rather than the one the caller used. Behind a
+    # published port or a NodePort those differ, so /object-service would send a browser
+    # to a port nothing serves. Relative redirects leave the host and port alone.
+    absolute_redirect off;
+
     # Declared once here, in the http context, so each server block below stays short.
     ssl_certificate     /etc/nginx/certs/tls.crt;
     ssl_certificate_key /etc/nginx/certs/tls.key;

@@ -129,9 +129,14 @@ class Stack:
     def url(self, component: str, path: str = "") -> str:
         return self.urls[component].rstrip("/") + path
 
+    def request_kwargs(self, **overrides: object) -> dict[str, object]:
+        """Arguments every request needs: the demo CA to verify against, and a timeout."""
+        kwargs: dict[str, object] = {"timeout": 30}
+        if self.ca_cert is not None:
+            kwargs["verify"] = str(self.ca_cert)
+        kwargs.update(overrides)
+        return kwargs
+
     def get(self, component: str, path: str = "", **kwargs: object) -> requests.Response:
         """GET a path on one component, verifying TLS against the demo CA."""
-        if self.ca_cert is not None:
-            kwargs.setdefault("verify", str(self.ca_cert))
-        kwargs.setdefault("timeout", 30)
-        return requests.get(self.url(component, path), **kwargs)  # type: ignore[arg-type]
+        return requests.get(self.url(component, path), **self.request_kwargs(**kwargs))  # type: ignore[arg-type]

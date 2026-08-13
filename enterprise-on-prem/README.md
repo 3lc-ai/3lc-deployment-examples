@@ -609,7 +609,7 @@ In a browser, the Hub at <https://3lc.localhost/> and the Dashboard at
 Under Docker Compose, plain HTTP is still published on 8080 and redirects:
 
 ```bash
-curl -I http://3lc.localhost:8080/     # 301 to https://3lc.localhost/
+curl -I http://3lc.localhost:8080/     # 302 to https://3lc.localhost/
 ```
 
 The redirect drops the port, because 443 is the default for https.
