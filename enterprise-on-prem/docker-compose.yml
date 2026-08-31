@@ -54,6 +54,9 @@ services:
     image: "tlc-enterprise-compute-service:latest"
     build:
       dockerfile: compute_service.Dockerfile
+      secrets:
+        - tlc_pypi_access_key
+        - tlc_pypi_secret_key
       args:
         - TLC_COMPUTE_VERSION=1.0.1
     environment:

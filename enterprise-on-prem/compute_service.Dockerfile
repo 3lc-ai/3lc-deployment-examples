@@ -16,12 +16,16 @@ ARG TLC_COMPUTE_VERSION
 # Upgrade pip first to avoid issues with old pip resolver.
 RUN pip install --no-cache --upgrade pip
 
-# Three indexes are needed, in this order:
-#   prereleases-public  the Compute Service itself, which has no release build yet
-#   releases-public     its 3lc dependency
-#   pypi.org            everything else
-RUN pip install --no-cache \
-    3lc-compute==${TLC_COMPUTE_VERSION}
+# The private PyPI credentials arrive as build secrets, not build args. A build arg
+# interpolated into a RUN line is recorded verbatim in the image's layer metadata, where
+# `docker history` will show it to anyone holding the image. A secret mount exists only
+# for the duration of this one RUN and is never written to a layer.
+RUN --mount=type=secret,id=tlc_pypi_access_key,env=TLC_PYPI_ACCESS_KEY \
+    --mount=type=secret,id=tlc_pypi_secret_key,env=TLC_PYPI_SECRET_KEY \
+    pip install --no-cache \
+      --index-url "https://${TLC_PYPI_ACCESS_KEY}:${TLC_PYPI_SECRET_KEY}@pypi.3lc.ai/repositories/releases" \
+      --extra-index-url https://pypi.org/simple \
+      "3lc-compute==${TLC_COMPUTE_VERSION}"
 
 # The Compute Service provisions each plugin into its own virtual environment with uv, and
 # looks it up on PATH, so installing a plugin fails without it. A future 3lc-compute will
