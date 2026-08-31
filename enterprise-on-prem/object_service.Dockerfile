@@ -25,6 +25,8 @@ RUN pip install --no-cache --upgrade pip
 RUN --mount=type=secret,id=tlc_pypi_access_key,env=TLC_PYPI_ACCESS_KEY \
     --mount=type=secret,id=tlc_pypi_secret_key,env=TLC_PYPI_SECRET_KEY \
     pip install --no-cache \
+      --index-url "https://${TLC_PYPI_ACCESS_KEY}:${TLC_PYPI_SECRET_KEY}@pypi.3lc.ai/repositories/releases" \
+      --extra-index-url https://pypi.org/simple \
       "3lc==${TLC_VERSION}"
 
 EXPOSE 5015
