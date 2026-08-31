@@ -21,9 +21,6 @@ RUN pip install --no-cache --upgrade pip
 #   releases-public     its 3lc dependency
 #   pypi.org            everything else
 RUN pip install --no-cache \
-    --index-url https://pypi.3lc.ai/public/repositories/prereleases-public \
-    --extra-index-url https://pypi.3lc.ai/public/repositories/releases-public \
-    --extra-index-url https://pypi.org/simple \
     3lc-compute==${TLC_COMPUTE_VERSION}
 
 # The Compute Service provisions each plugin into its own virtual environment with uv, and
