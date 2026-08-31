@@ -46,4 +46,3 @@ global:
   # /run/desktop/mnt/host/c/some/path/mounts; a cluster on Linux takes the path as it is.
   # The value below is an EXAMPLE and will not match your checkout — update it.
   pvc_host_path: /run/desktop/mnt/host/c/sources/tlc/3lc-deployment-examples/default/mounts
-
