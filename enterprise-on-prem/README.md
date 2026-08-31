@@ -24,10 +24,9 @@ dependency on a 3LC-hosted account. For the 3LC-hosted variant, see
 | Hub | `tlc-enterprise-hub-frontend:latest` | `hub_frontend.Dockerfile` | 8081 | 3LC Hub, the primary web entry point |
 | nginx proxy | `nginx:alpine` | (pulled) | 80 | Single entry point; routes to all of the above |
 
-The Object Service, Dashboard and Hub images install from the **private** 3LC package
-repository and so require `TLC_PYPI_ACCESS_KEY` and `TLC_PYPI_SECRET_KEY` at build time.
-The Compute Service is the exception: it installs from the public indexes, like the
-Default deployment does for everything.
+The Object Service, Compute Service, Dashboard, and Hub images install from the **private**
+3LC package repository and so require `TLC_PYPI_ACCESS_KEY` and `TLC_PYPI_SECRET_KEY` at
+build time.
 
 ### How the components authenticate
 

@@ -16,8 +16,8 @@ ARG TLC_VERSION
 # Upgrade pip first to avoid issues with old pip resolver.
 RUN pip install --no-cache --upgrade pip
 
-# Install 3LC from the public 3LC PyPI repository, falling back to the public PyPI for dependencies.
-RUN pip install --no-cache --index-url https://pypi.3lc.ai/public/repositories/releases-public --extra-index-url https://pypi.org/simple 3lc==${TLC_VERSION}
+# Install the 3lc package.
+RUN pip install --no-cache 3lc==${TLC_VERSION}
 
 EXPOSE 5015
 
