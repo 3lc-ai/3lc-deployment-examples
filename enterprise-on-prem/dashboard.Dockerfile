@@ -15,7 +15,7 @@ FROM python:3.12
 
 ARG DASHBOARD_VERSION
 
-# Upgrade pip first for a consistent, modern resolver across all 3LC images.
+# Upgrade pip first to avoid issues with old pip resolver.
 RUN pip install --no-cache --upgrade pip
 
 # The private PyPI credentials arrive as build secrets, not build args. A build arg
