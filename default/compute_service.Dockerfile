@@ -16,15 +16,8 @@ ARG TLC_COMPUTE_VERSION
 # Upgrade pip first to avoid issues with old pip resolver.
 RUN pip install --no-cache --upgrade pip
 
-# Three indexes are needed, in this order:
-#   prereleases-public  the Compute Service itself, which has no release build yet
-#   releases-public     its 3lc dependency
-#   pypi.org            everything else
-RUN pip install --no-cache \
-    --index-url https://pypi.3lc.ai/public/repositories/prereleases-public \
-    --extra-index-url https://pypi.3lc.ai/public/repositories/releases-public \
-    --extra-index-url https://pypi.org/simple \
-    3lc-compute==${TLC_COMPUTE_VERSION}
+# Install the 3lc-compute package.
+RUN pip install --no-cache 3lc-compute==${TLC_COMPUTE_VERSION}
 
 # The Compute Service provisions each plugin into its own virtual environment with uv, and
 # looks it up on PATH, so installing a plugin fails without it. A future 3lc-compute will
