@@ -18,10 +18,9 @@ ARG DASHBOARD_VERSION
 # Upgrade pip first to avoid issues with old pip resolver.
 RUN pip install --no-cache --upgrade pip
 
-# The private PyPI credentials arrive as build secrets, not build args. A build arg
-# interpolated into a RUN line is recorded verbatim in the image's layer metadata, where
-# `docker history` will show it to anyone holding the image. A secret mount exists only
-# for the duration of this one RUN and is never written to a layer.
+# Install the 3lc-dashboard package.
+# Use build secrets for the private PyPI credentials so they are not recorded in the
+# image's layer metadata.
 RUN --mount=type=secret,id=tlc_pypi_access_key,env=TLC_PYPI_ACCESS_KEY \
     --mount=type=secret,id=tlc_pypi_secret_key,env=TLC_PYPI_SECRET_KEY \
     pip install --no-cache \
