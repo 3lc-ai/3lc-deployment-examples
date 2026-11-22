@@ -20,7 +20,7 @@ This is the **Default** (3LC-hosted account) deployment. Components authenticate
 | --- | --- | --- | --- | --- |
 | Object Service | `tlc-default-object-service:latest` | `object_service.Dockerfile` | 5015 | Serves 3LC table and run data |
 | Compute Service | `tlc-default-compute-service:latest` | `compute_service.Dockerfile` | 5020 | Insights, training, import and export |
-| nginx proxy | `nginx:alpine` | (pulled) | 80 | Single entry point; routes to the Object Service |
+| nginx proxy | `nginx:1.31.9-alpine` | (pulled) | 80 | Single entry point; routes to the Object Service |
 
 The Object Service is the `3lc` Python package's built-in service (`3lc service`), so the
 image is just Python plus `pip install 3lc`.
@@ -147,7 +147,7 @@ docker compose up --build                   Helm chart
   |                                         |
   +- builds tlc-default-object-service -----+ deploys it as the object-service Deployment
   |                                         |
-  +- runs nginx with default.conf           + deploys nginx:alpine with the equivalent
+  +- runs nginx with default.conf           + deploys nginx:1.31.9-alpine with the equivalent
                                               routing from helm/values.yaml
 ```
 

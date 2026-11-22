@@ -9,9 +9,11 @@
 #=============================================================================
 
 # The official nginx image, the same one docker-compose.yml uses for the proxy.
-# This is a rolling tag; pin it (for example nginx:1.27-alpine) if you need
-# reproducible deployments.
-image: nginx:alpine
+# Pinned to an exact nginx release so every install runs a known, patched
+# version, even where an older nginx:alpine is already cached. Bump it when
+# nginx publishes a security fix: https://nginx.org/en/security_advisories.html
+# (1.31.9 fixes the November 2026 NGINX2Root CVEs.)
+image: nginx:1.31.9-alpine
 imagePullPolicy: IfNotPresent
 
 # Port nginx listens on inside the container. Must match the `listen` directive

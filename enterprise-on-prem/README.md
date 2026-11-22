@@ -22,7 +22,7 @@ dependency on a 3LC-hosted account. For the 3LC-hosted variant, see
 | Compute Service | `tlc-enterprise-compute-service:latest` | `compute_service.Dockerfile` | 5020 | Insights, training, import and export |
 | Dashboard | `tlc-enterprise-dashboard:latest` | `dashboard.Dockerfile` | 8080 | 3LC web UI |
 | Hub | `tlc-enterprise-hub-frontend:latest` | `hub_frontend.Dockerfile` | 8081 | 3LC Hub, the primary web entry point |
-| nginx proxy | `nginx:alpine` | (pulled) | 80 | Single entry point; routes to all of the above |
+| nginx proxy | `nginx:1.31.9-alpine` | (pulled) | 80 | Single entry point; routes to all of the above |
 
 The Object Service, Compute Service, Dashboard, and Hub images install from the **private**
 3LC package repository and so require `TLC_PYPI_ACCESS_KEY` and `TLC_PYPI_SECRET_KEY` at
@@ -229,7 +229,7 @@ docker compose up --build                      Helm chart
   +- builds tlc-enterprise-object-service -----+ deploys it as the object-service Deployment
   +- builds tlc-enterprise-dashboard ----------+ deploys it as the dashboard Deployment
   |                                            |
-  +- runs nginx with default.conf              + deploys nginx:alpine with the equivalent
+  +- runs nginx with default.conf              + deploys nginx:1.31.9-alpine with the equivalent
                                                  routing from helm/values.yaml
 ```
 
